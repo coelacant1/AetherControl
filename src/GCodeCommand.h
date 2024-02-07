@@ -15,7 +15,8 @@ struct GCodeCommand {
     bool hasA; // Flag to indicate if Z coordinate is provided
     bool hasB; // Flag to indicate if Z coordinate is provided
     bool hasC; // Flag to indicate if Z coordinate is provided
+    float feedrate; // Feedrate
 
     // Constructor to initialize default values
-    GCodeCommand() : commandType('\0'), commandNumber(-1), X(0), Y(0), Z(0), A(0), B(0), C(0), hasX(false), hasY(false), hasZ(false), hasA(false), hasB(false), hasC(false) {}
+    GCodeCommand() : commandType('\0'), commandNumber(-1), X(0), Y(0), Z(0), A(0), B(0), C(0), hasX(false), hasY(false), hasZ(false), hasA(false), hasB(false), hasC(false), feedrate(0) {}
 };
