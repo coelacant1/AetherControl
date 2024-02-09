@@ -58,3 +58,10 @@ float PID::Calculate(float setpoint, float processVariable, float dT) {
 
     return output;
 }
+
+float PID::Reset(){
+    integral = 0;
+    error = 0;
+    previousError = 0;
+    output = 0;
+}

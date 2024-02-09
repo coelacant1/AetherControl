@@ -138,10 +138,9 @@ void PulseControl<axisCount>::AutoStepControl(){// Controlled by interval timer
     }
 }
 
-
 template<size_t axisCount>
 void PulseControl<axisCount>::Enable(){
-    pulseTimer.begin(PulseControl<axisCount>::AutoStepControl, 1);
+    pulseTimer.begin(PulseControl<axisCount>::AutoStepControl, 1);//1MHz max update rate
 }
 
 template<size_t axisCount>

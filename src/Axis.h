@@ -26,7 +26,6 @@ private:
     bool newCommand = true;
 
     float previousTargetPosition = 0.0f;
-    float previousTargetVelocity = 0.0f;
 
     float targetPosition = 0.0f;//mm
     float targetVelocity = 0.0f;//mm/s
@@ -60,12 +59,15 @@ public:
     bool ReadEndstop() const; // Reads the endstop state
 
     AxisLimits GetAxisLimits();
-    float GetCurrentPositionMM(); // Returns the current position in mm
+    float GetCurrentPosition(); // Returns the current position in mm
     float GetCurrentVelocity() const;
     float GetAcceleration() const;
     
+    float GetPreviousTargetPosition() const;
     float GetTargetPosition() const;// 
     float GetTargetVelocity() const;// 
+
+    void SetCurrentVelocity(float velocity);
 
     void SetTargetPosition(float targetPosition);// Returns constrained output
     void SetTargetVelocity(float targetVelocity);// Returns constrained output
@@ -165,7 +167,7 @@ AxisLimits Axis<axisCount>::GetAxisLimits(){
 }
 
 template<size_t axisCount>
-float Axis<axisCount>::GetCurrentPositionMM() {
+float Axis<axisCount>::GetCurrentPosition() {
     noInterrupts();
     position = PulseControl<axisCount>::GetCurrentPosition(instanceNumber) / stepsPerMillimeter;
     interrupts();
@@ -184,6 +186,11 @@ float Axis<axisCount>::GetAcceleration() const {
 }
 
 template<size_t axisCount>
+float Axis<axisCount>::GetPreviousTargetPosition() const {
+    return previousTargetPosition;
+}
+
+template<size_t axisCount>
 float Axis<axisCount>::GetTargetPosition() const {
     return targetPosition;
 }
@@ -194,7 +201,14 @@ float Axis<axisCount>::GetTargetVelocity() const {
 }
 
 template<size_t axisCount>
+void Axis<axisCount>::SetCurrentVelocity(float velocity){
+    this->velocity = velocity;
+}
+
+template<size_t axisCount>
 void Axis<axisCount>::SetTargetPosition(float targetPosition){
+    previousTargetPosition = this->targetPosition;
+    
     this->targetPosition = Mathematics::Constrain(targetPosition, axisLimits.minPosition, axisLimits.maxPosition);
 
     newCommand = true;
@@ -212,7 +226,7 @@ void Axis<axisCount>::SetTargetVelocity(float targetVelocity){
 template<size_t axisCount>
 void Axis<axisCount>::Update(){
     // Time since target velocity last changed
-    GetCurrentPositionMM();// Updates current position from step position
+    GetCurrentPosition();// Updates current position from step position
 
     int direction = Mathematics::Sign(targetPosition - position);
 
@@ -230,7 +244,6 @@ void Axis<axisCount>::Update(){
 
     //float accelerationChange = jerk * dT;// Desired change in velocity based on acceleration
     float velocityChange = acceleration * dT * float(direction);// Desired change in velocity based on acceleration
-
     float remainingDistance = fabsf(targetPosition - position);// Acceleration or deceleration phase
     float decelerationDistance = (velocity * velocity) / (2.0f * acceleration);// Stopping distance
 
@@ -260,31 +273,15 @@ void Axis<axisCount>::Update(){
     if (remainingDistance < 0.001f) velocity = 0;
 
     long microseconds = 1000000L / Mathematics::Constrain(long(fabsf(velocity) * stepsPerMillimeter), 1L, 250000L);
-    
-    Serial.print(instanceNumber); Serial.print('\t');
-    Serial.print(velocity); Serial.print('\t');
-    Serial.print(targetVelocity); Serial.print('\t');
-    Serial.print(axisLimits.maxVelocity); Serial.print('\t');
-    Serial.print(position); Serial.print('\t');
-    Serial.print(targetPosition); Serial.print('\t');
-    Serial.print(velocityChange); Serial.print('\t');
-    Serial.print(" * "); Serial.print('\t');
-    Serial.print(remainingDistance); Serial.print('\t');
-    Serial.print(decelerationDistance); Serial.print('\t');
-    Serial.print(microseconds); Serial.print('\t');
-    Serial.print(" *** "); Serial.print('\t');
-    
-    //Serial.println();
 
     noInterrupts();
     PulseControl<axisCount>::SetFrequency(instanceNumber, microseconds);
     interrupts();
 }
 
-
 template<size_t axisCount>
 float Axis<axisCount>::CalculateTravelTime() {// Assuming S-curve time is approximately equal to linear time (integration is same result)
-    GetCurrentPositionMM();
+    GetCurrentPosition();
 
     float timeToReachTargetVelocity = targetVelocity / acceleration;
     float distanceDuringAcceleration = 0.5f * acceleration * Mathematics::Pow(timeToReachTargetVelocity, 2.0f);

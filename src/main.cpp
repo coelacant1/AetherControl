@@ -7,8 +7,8 @@
 AxisLimits axisLimitZ = AxisLimits(0.0f, 400.0f, 0.1f, 1000.0f, 1000000.0f);
 AxisLimits axisLimitR = AxisLimits(0.0f, 400.0f, 0.1f, 1000.0f, 1000000.0f);
 
-Axis<2> axisZ = Axis<2>(3, 4, 2, 80.0f, 100.0f);//8, 
-Axis<2> axisR = Axis<2>(6, 7, 5, 80.0f, 100.0f);
+Axis<2> axisZ = Axis<2>(3, 4, 2, 80.0f, 300.0f);//8, 
+Axis<2> axisR = Axis<2>(6, 7, 5, 80.0f, 300.0f);
 
 PathPlanner<2> pathPlanner = PathPlanner<2>();
 
@@ -34,21 +34,21 @@ void setup() {
 
 void printAxisData(){
     Serial.print(axisZ.GetCurrentVelocity()); Serial.print('\t');
-    Serial.print(axisZ.GetCurrentPositionMM()); Serial.print('\t');
+    Serial.print(axisZ.GetCurrentPosition()); Serial.print('\t');
     Serial.print(axisZ.GetTargetPosition()); Serial.print('\t');
     Serial.print(axisZ.GetTargetVelocity()); Serial.print("\t\t");
 
     Serial.print(axisR.GetCurrentVelocity()); Serial.print('\t');
-    Serial.print(axisR.GetCurrentPositionMM()); Serial.print('\t');
+    Serial.print(axisR.GetCurrentPosition()); Serial.print('\t');
     Serial.print(axisR.GetTargetPosition()); Serial.print('\t');
     Serial.print(axisR.GetTargetVelocity()); Serial.print('\n');
 }
 
 void printTargetVPosition(){
     Serial.print("Target Z: "); Serial.print(axisZ.GetTargetPosition(), 5);
-    Serial.print("\tPosition Z: "); Serial.print(axisZ.GetCurrentPositionMM(), 5);
+    Serial.print("\tPosition Z: "); Serial.print(axisZ.GetCurrentPosition(), 5);
     Serial.print("\tTarget R: "); Serial.print(axisR.GetTargetPosition(), 5);
-    Serial.print("\tPosition Z: "); Serial.println(axisR.GetCurrentPositionMM(), 5);
+    Serial.print("\tPosition Z: "); Serial.println(axisR.GetCurrentPosition(), 5);
 }
 
 void printTargetWVelocity(){
@@ -60,41 +60,51 @@ void printTargetWVelocity(){
 
 void loop() {
     //update controller
-    axisZ.SetTargetPosition(400.0f);
+    axisZ.SetTargetPosition(350.0f);
     axisR.SetTargetPosition(300.0f);
 
-    pathPlanner.Update(100.0f);
+    pathPlanner.DetermineControlAxis(250.0f);
     printTargetWVelocity();
 
-    while (!Mathematics::IsClose(axisZ.GetCurrentPositionMM(), axisZ.GetTargetPosition(), 0.01f) || !Mathematics::IsClose(axisR.GetCurrentPositionMM(), axisR.GetTargetPosition(), 0.01f)) {
-        axisZ.Update();
-        axisR.Update();
+    elapsedMillis total = 0;
+    elapsedMillis axZT = 0;
+    elapsedMillis axRT = 0;
 
-        //printAxisData();
-        Serial.print('\n');
+    while (pathPlanner.Update()) {
+        if (!Mathematics::IsClose(axisZ.GetCurrentPosition(), axisZ.GetTargetPosition(), 0.01f)) axZT = 0;
+        if (!Mathematics::IsClose(axisR.GetCurrentPosition(), axisR.GetTargetPosition(), 0.01f)) axRT = 0;
 
         delay(1);
     }
+
+    Serial.print(total); Serial.print('\t');
+    Serial.print(axZT); Serial.print('\t');
+    Serial.print(total - axZT); Serial.print('\t');
+    Serial.print(axRT); Serial.print('\t');
+    Serial.print(total - axRT); Serial.print('\n');
 
     printTargetVPosition();
 
     delay(1000);
-
-    axisZ.SetTargetPosition(0.0f);
+    
+    axisZ.SetTargetPosition(50.0f);
     axisR.SetTargetPosition(100.0f);
     
-    pathPlanner.Update(100.0f);
+    pathPlanner.DetermineControlAxis(150.0f);
     printTargetWVelocity();
 
-    while (!Mathematics::IsClose(axisZ.GetCurrentPositionMM(), axisZ.GetTargetPosition(), 0.01f) || !Mathematics::IsClose(axisR.GetCurrentPositionMM(), axisR.GetTargetPosition(), 0.01f)) {
-        axisZ.Update();
-        axisR.Update();
-
-        //printAxisData();
-        Serial.print('\n');
+    while (pathPlanner.Update()) {
+        if (!Mathematics::IsClose(axisZ.GetCurrentPosition(), axisZ.GetTargetPosition(), 0.01f)) axZT = 0;
+        if (!Mathematics::IsClose(axisR.GetCurrentPosition(), axisR.GetTargetPosition(), 0.01f)) axRT = 0;
 
         delay(1);
     }
+
+    Serial.print(total); Serial.print('\t');
+    Serial.print(axZT); Serial.print('\t');
+    Serial.print(total - axZT); Serial.print('\t');
+    Serial.print(axRT); Serial.print('\t');
+    Serial.print(total - axRT); Serial.print('\n');
 
     printTargetVPosition();
 

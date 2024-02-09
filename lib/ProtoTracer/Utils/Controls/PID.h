@@ -17,4 +17,6 @@ public:
     ~PID();
     float Calculate(float setpoint, float processVariable, unsigned long currentMillis);
     float Calculate(float setpoint, float processVariable, float dT);
+
+    float Reset();
 };
