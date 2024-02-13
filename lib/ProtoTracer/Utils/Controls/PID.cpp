@@ -59,7 +59,13 @@ float PID::Calculate(float setpoint, float processVariable, float dT) {
     return output;
 }
 
-float PID::Reset(){
+void PID::SetValues(float kp, float ki, float kd){
+    this->kp = kp;
+    this->ki = ki;
+    this->kd = kd;
+}
+
+void PID::Reset(){
     integral = 0;
     error = 0;
     previousError = 0;

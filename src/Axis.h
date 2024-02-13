@@ -20,12 +20,15 @@ private:
     uint8_t endstopPin = -1;
 
     float stepsPerMillimeter = 80.0f;
+    bool homeMax = true;
     bool isHomed = false;
     bool isRelative = false;
     bool isEnabled = false;
     bool newCommand = true;
 
+    float controlPosition = 0.0f;
     float previousTargetPosition = 0.0f;
+    float previousControlPosition = 0.0f;
 
     float targetPosition = 0.0f;//mm
     float targetVelocity = 0.0f;//mm/s
@@ -39,9 +42,6 @@ private:
     elapsedMicros sinceTravelEstimate;
     elapsedMicros sinceUpdate;
 
-    void SetDirection(bool direction);
-    void Step();
-
 public:
     Axis(uint8_t stepPin, uint8_t dirPin, uint8_t enablePin, float stepsPerMillimeter, float acceleration); // Relative axis
     Axis(uint8_t stepPin, uint8_t dirPin, uint8_t enablePin, uint8_t endstopPin, float stepsPerMillimeter, float acceleration); // Absolute axis
@@ -50,7 +50,10 @@ public:
 
     void SetAxisLimits(AxisLimits axisLimits);
 
+    void SetHomeDirection(bool towardsMax);
+
     void AutoHome(); // Perform auto-homing procedure
+    void Invert(bool invert);// Invert axis direction
     void Enable(); // Enables the stepper motor
     void Disable(); // Disables the stepper motor
     void SetStepsPerMillimeter(float stepsPerMM); // Configures steps per mm
@@ -63,16 +66,21 @@ public:
     float GetCurrentVelocity() const;
     float GetAcceleration() const;
     
+    float GetStepsPerMillimeter(); // Returns steps per mm
+    
     float GetPreviousTargetPosition() const;
     float GetTargetPosition() const;// 
     float GetTargetVelocity() const;// 
 
-    void SetCurrentVelocity(float velocity);
+    void SetCurrentPosition(float position);
+    void SetCurrentVelocity(float velocity);// Sets current control loop to velocity
 
     void SetTargetPosition(float targetPosition);// Returns constrained output
     void SetTargetVelocity(float targetVelocity);// Returns constrained output
 
-    float CalculateTravelTime();// Time to travel from current position, to target position, assuming cosine interpolation for position 
+    float GetControlPreviousPosition();// Sets current control loop to position
+    void SetControlPosition(float position);// Sets current control loop to position
+    void SetControlFrequency(float hertz);// Sets current control loop frequency
 
     void Update();//Updates the current axis to follow the command set
 
@@ -109,20 +117,56 @@ void Axis<axisCount>::Initialize(){
 }
 
 template<size_t axisCount>
-void Axis<axisCount>::SetDirection(bool direction){
-    digitalWriteFast(dirPin, direction);
-}
-
-template<size_t axisCount>
-void Axis<axisCount>::Step(){
-    digitalWriteFast(stepPin, HIGH);// Step
-    delayNanoseconds(100);
-    digitalWriteFast(stepPin, LOW);
+void Axis<axisCount>::SetHomeDirection(bool towardsMax){
+    this->homeMax = towardsMax;
 }
 
 template<size_t axisCount>
 void Axis<axisCount>::AutoHome(){
+    float min, max;
 
+    if (homeMax){
+        min = axisLimits.minPosition;
+        max = axisLimits.maxPosition;
+    }
+    else{
+        min = axisLimits.maxPosition;
+        max = axisLimits.minPosition;
+    }
+
+    SetCurrentPosition(min);
+    SetTargetPosition(max);
+    SetTargetVelocity(axisLimits.maxVelocity / 10.0f);
+
+    while(!ReadEndstop()){
+        Update();
+        delay(5);
+    }
+    
+    SetCurrentPosition(max);
+    SetTargetPosition(homeMax ? max - 5.0f : max + 5.0f);
+    SetTargetVelocity(axisLimits.maxVelocity / 50.0f);
+    
+    while(ReadEndstop() || !Mathematics::IsClose(GetCurrentPosition(), GetTargetPosition(), 0.01f)){
+        Update();
+        delay(5);
+    }
+
+    SetTargetPosition(max);
+    SetTargetVelocity(axisLimits.maxVelocity / 50.0f);
+
+    while(!ReadEndstop() || !Mathematics::IsClose(GetCurrentPosition(), GetTargetPosition(), 0.01f)){
+        Update();
+        delay(5);
+    }
+    
+    SetCurrentPosition(max);
+    SetTargetPosition(max);
+}
+
+template<size_t axisCount>
+void Axis<axisCount>::Invert(bool invert){
+    PulseControl<axisCount>::SetDirection(invert);
 }
 
 template<size_t axisCount>
@@ -167,12 +211,22 @@ AxisLimits Axis<axisCount>::GetAxisLimits(){
 }
 
 template<size_t axisCount>
+float Axis<axisCount>::GetStepsPerMillimeter(){ // Returns steps per mm
+    return stepsPerMillimeter;
+}
+
+template<size_t axisCount>
 float Axis<axisCount>::GetCurrentPosition() {
-    noInterrupts();
     position = PulseControl<axisCount>::GetCurrentPosition(instanceNumber) / stepsPerMillimeter;
-    interrupts();
 
     return position;
+}
+
+template<size_t axisCount>
+void Axis<axisCount>::SetCurrentPosition(float position){
+    this->position = position;
+
+    PulseControl<axisCount>::SetCurrentPosition(instanceNumber, position * stepsPerMillimeter);
 }
 
 template<size_t axisCount>
@@ -212,15 +266,31 @@ void Axis<axisCount>::SetTargetPosition(float targetPosition){
     this->targetPosition = Mathematics::Constrain(targetPosition, axisLimits.minPosition, axisLimits.maxPosition);
 
     newCommand = true;
-
-    noInterrupts();
-    PulseControl<axisCount>::SetTargetPosition(instanceNumber, targetPosition * stepsPerMillimeter);
-    interrupts();
 }
 
 template<size_t axisCount>
 void Axis<axisCount>::SetTargetVelocity(float targetVelocity){
     this->targetVelocity = Mathematics::Constrain(targetVelocity, axisLimits.minVelocity, axisLimits.maxVelocity);
+}
+
+template<size_t axisCount>
+float Axis<axisCount>::GetControlPreviousPosition(){
+    return previousControlPosition;
+}
+
+template<size_t axisCount>
+void Axis<axisCount>::SetControlPosition(float position){
+    previousControlPosition = controlPosition;
+    controlPosition = position;
+
+    PulseControl<axisCount>::SetTargetPosition(instanceNumber, position * stepsPerMillimeter);
+}
+
+template<size_t axisCount>
+void Axis<axisCount>::SetControlFrequency(float hertz){
+    long microseconds = 1000000L / Mathematics::Constrain(long(hertz), 1L, 250000L);
+
+    PulseControl<axisCount>::SetFrequency(instanceNumber, microseconds);
 }
 
 template<size_t axisCount>
@@ -242,11 +312,9 @@ void Axis<axisCount>::Update(){
 
     sinceUpdate = 0;
 
-    //float accelerationChange = jerk * dT;// Desired change in velocity based on acceleration
     float velocityChange = acceleration * dT * float(direction);// Desired change in velocity based on acceleration
     float remainingDistance = fabsf(targetPosition - position);// Acceleration or deceleration phase
     float decelerationDistance = (velocity * velocity) / (2.0f * acceleration);// Stopping distance
-
 
     if (position < targetPosition) {// Move forward
         if (remainingDistance > decelerationDistance && fabsf(velocity) < targetVelocity){
@@ -274,34 +342,9 @@ void Axis<axisCount>::Update(){
 
     long microseconds = 1000000L / Mathematics::Constrain(long(fabsf(velocity) * stepsPerMillimeter), 1L, 250000L);
 
+    SetControlPosition(targetPosition);
+
     noInterrupts();
     PulseControl<axisCount>::SetFrequency(instanceNumber, microseconds);
     interrupts();
-}
-
-template<size_t axisCount>
-float Axis<axisCount>::CalculateTravelTime() {// Assuming S-curve time is approximately equal to linear time (integration is same result)
-    GetCurrentPosition();
-
-    float timeToReachTargetVelocity = targetVelocity / acceleration;
-    float distanceDuringAcceleration = 0.5f * acceleration * Mathematics::Pow(timeToReachTargetVelocity, 2.0f);
-    float distance = fabsf(targetPosition - position);
-
-    // Target velocity is not reached
-    if (distanceDuringAcceleration * 2 > distance) {
-        float peakVelocity = Mathematics::Sqrt((distance * acceleration) / 2.0f);
-        float timeToPeakVelocity = peakVelocity / acceleration;
-
-        lastTravelEstimate = timeToPeakVelocity * 2.0f;
-    }
-    else {
-        float distanceAtConstantVelocity = distance - (2.0f * distanceDuringAcceleration);
-        float timeAtConstantVelocity = distanceAtConstantVelocity / targetVelocity;
-
-        lastTravelEstimate = (2.0f * timeToReachTargetVelocity) + timeAtConstantVelocity;
-    }
-
-    sinceTravelEstimate = 0;
-
-    return lastTravelEstimate;
 }

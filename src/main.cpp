@@ -3,14 +3,17 @@
 #include "Axis.h"
 #include "PathPlanner.h"
 #include "PulseControl.h"
+#include "..\ProtoTracer\Utils\Debug.h"
 
-AxisLimits axisLimitZ = AxisLimits(0.0f, 400.0f, 0.1f, 1000.0f, 1000000.0f);
-AxisLimits axisLimitR = AxisLimits(0.0f, 400.0f, 0.1f, 1000.0f, 1000000.0f);
+AxisLimits axisLimitZ = AxisLimits(0.0f, 40.0f, 0.01f, 1000.0f, 1000000.0f);
+AxisLimits axisLimitR = AxisLimits(-720.0f, 720.0f, 0.01f, 1000.0f, 1000000.0f);
 
-Axis<2> axisZ = Axis<2>(3, 4, 2, 80.0f, 300.0f);//8, 
-Axis<2> axisR = Axis<2>(6, 7, 5, 80.0f, 300.0f);
+Axis<2> axisZ = Axis<2>(6, 7, 5, 8, 80.0f, 100.0f);//8, 
+Axis<2> axisR = Axis<2>(3, 4, 2, 80.0f, 100.0f);
 
 PathPlanner<2> pathPlanner = PathPlanner<2>();
+
+long increment = 0;
 
 void setup() {
     //initialize hardware
@@ -25,6 +28,8 @@ void setup() {
 
     pathPlanner.AddAxis(&axisZ);
     pathPlanner.AddAxis(&axisR);
+
+    axisZ.SetHomeDirection(true);
 
     PulseControl<2>::Enable();
 
@@ -58,55 +63,36 @@ void printTargetWVelocity(){
     Serial.print("\tTarget Vel R: "); Serial.println(axisR.GetTargetVelocity(), 2);
 }
 
-void loop() {
-    //update controller
-    axisZ.SetTargetPosition(350.0f);
-    axisR.SetTargetPosition(300.0f);
-
-    pathPlanner.DetermineControlAxis(250.0f);
-    printTargetWVelocity();
-
-    elapsedMillis total = 0;
-    elapsedMillis axZT = 0;
-    elapsedMillis axRT = 0;
-
-    while (pathPlanner.Update()) {
-        if (!Mathematics::IsClose(axisZ.GetCurrentPosition(), axisZ.GetTargetPosition(), 0.01f)) axZT = 0;
-        if (!Mathematics::IsClose(axisR.GetCurrentPosition(), axisR.GetTargetPosition(), 0.01f)) axRT = 0;
-
-        delay(1);
-    }
-
-    Serial.print(total); Serial.print('\t');
-    Serial.print(axZT); Serial.print('\t');
-    Serial.print(total - axZT); Serial.print('\t');
-    Serial.print(axRT); Serial.print('\t');
-    Serial.print(total - axRT); Serial.print('\n');
-
-    printTargetVPosition();
+void loop() {// 10:28
+    Serial.print(Debug::FreeMem()); Serial.print('\t');
+    Serial.print(increment / 3600); Serial.print('\t');
+    Serial.print(increment / 60); Serial.print('\t');
+    Serial.print(increment % 60); Serial.print('\t');
+    Serial.println(increment++);
+    /*
+    Serial.println("Homing Z");
+    axisZ.AutoHome();
 
     delay(1000);
     
-    axisZ.SetTargetPosition(50.0f);
-    axisR.SetTargetPosition(100.0f);
+    Serial.println("Moving Z30, R60");
+    axisZ.SetTargetPosition(30.0f);
+    axisR.SetTargetPosition(60.0f);
+
+    pathPlanner.CalculateLimits(100.0f);
+
+    while (pathPlanner.Update()) delay(50);
+
+    delay(1000);
     
-    pathPlanner.DetermineControlAxis(150.0f);
-    printTargetWVelocity();
+    Serial.println("Moving Z0, R0");
+    axisZ.SetTargetPosition(0.0f);
+    axisR.SetTargetPosition(0.0f);
+    
+    pathPlanner.CalculateLimits(100.0f);
 
-    while (pathPlanner.Update()) {
-        if (!Mathematics::IsClose(axisZ.GetCurrentPosition(), axisZ.GetTargetPosition(), 0.01f)) axZT = 0;
-        if (!Mathematics::IsClose(axisR.GetCurrentPosition(), axisR.GetTargetPosition(), 0.01f)) axRT = 0;
+    while (pathPlanner.Update()) delay(50);
 
-        delay(1);
-    }
-
-    Serial.print(total); Serial.print('\t');
-    Serial.print(axZT); Serial.print('\t');
-    Serial.print(total - axZT); Serial.print('\t');
-    Serial.print(axRT); Serial.print('\t');
-    Serial.print(total - axRT); Serial.print('\n');
-
-    printTargetVPosition();
-
+    */
     delay(1000);
 }

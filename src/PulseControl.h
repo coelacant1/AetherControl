@@ -5,23 +5,29 @@
 #include <functional>
 
 #include "..\ProtoTracer\Utils\Math\Mathematics.h"
+#include "..\ProtoTracer\Utils\Filter\RunningAverageFilter.h"
 
 IntervalTimer pulseTimer;
 
 template<size_t axisCount>
 class PulseControl {
 private:
+    static RunningAverageFilter<10> avgFilt[axisCount];
     static volatile uint8_t dirPin[axisCount];
     static volatile uint8_t stepPin[axisCount];
+    static volatile bool direction[axisCount];
     static volatile long currentPositionSteps[axisCount];
     static volatile long targetPositionSteps[axisCount];
     static volatile long minimumPositionSteps[axisCount];
     static volatile long maximumPositionSteps[axisCount];
     static volatile long frequencyCounter[axisCount];
     static volatile long frequencyTarget[axisCount];
+    static volatile bool stepped[axisCount];
     
 public:
     static void SetPins(uint8_t instanceNumber, uint8_t stepPin, uint8_t dirPin);
+
+    static void SetDirection(uint8_t instanceNumber, bool direction);
     
     static void SetConstraints(uint8_t instanceNumber, long minimumPositionSteps, long maximumPositionSteps);
 
@@ -45,9 +51,13 @@ public:
 IntervalTimer stepControlTimer;
 
 template<size_t axisCount>
+RunningAverageFilter<10> PulseControl<axisCount>::avgFilt[axisCount];
+template<size_t axisCount>
 volatile uint8_t PulseControl<axisCount>::dirPin[axisCount];
 template<size_t axisCount>
 volatile uint8_t PulseControl<axisCount>::stepPin[axisCount];
+template<size_t axisCount>
+volatile bool PulseControl<axisCount>::direction[axisCount];
 template<size_t axisCount>
 volatile long PulseControl<axisCount>::currentPositionSteps[axisCount];
 template<size_t axisCount>
@@ -60,6 +70,8 @@ template<size_t axisCount>
 volatile long PulseControl<axisCount>::frequencyCounter[axisCount];
 template<size_t axisCount>
 volatile long PulseControl<axisCount>::frequencyTarget[axisCount];
+template<size_t axisCount>
+volatile bool PulseControl<axisCount>::stepped[axisCount];
 
 template<size_t axisCount>
 void PulseControl<axisCount>::SetPins(uint8_t instanceNumber, uint8_t stepPin, uint8_t dirPin) {
@@ -70,10 +82,19 @@ void PulseControl<axisCount>::SetPins(uint8_t instanceNumber, uint8_t stepPin, u
 }
 
 template<size_t axisCount>
+void PulseControl<axisCount>::SetDirection(uint8_t instanceNumber, bool direction) {
+    noInterrupts();
+    PulseControl::direction[instanceNumber] = direction;
+    interrupts();
+}
+
+template<size_t axisCount>
 void PulseControl<axisCount>::SetConstraints(uint8_t instanceNumber, long minimumPositionSteps, long maximumPositionSteps) {
     noInterrupts();
     PulseControl::minimumPositionSteps[instanceNumber] = minimumPositionSteps;
     PulseControl::maximumPositionSteps[instanceNumber] = maximumPositionSteps;
+
+    avgFilt[instanceNumber] = RunningAverageFilter<10>(0.1f);
     interrupts();
 }
 
@@ -103,9 +124,9 @@ long PulseControl<axisCount>::GetCurrentPosition(uint8_t instanceNumber){
 }
 
 template<size_t axisCount>
-void PulseControl<axisCount>::SetCurrentPosition(uint8_t instanceNumber, long currentPositionSteps){
+void PulseControl<axisCount>::SetCurrentPosition(uint8_t instanceNumber, long steps){
     noInterrupts();
-    PulseControl::currentPositionSteps[instanceNumber] = currentPositionSteps;
+    PulseControl::currentPositionSteps[instanceNumber] = steps;//currentPositionSteps;
     interrupts();
 }
 
@@ -113,24 +134,28 @@ template<size_t axisCount>
 void PulseControl<axisCount>::AutoStepControl(){// Controlled by interval timer
     for(uint8_t i = 0; i < axisCount; i++){
 
-        if (frequencyCounter[i] == 9){//10 micros
+        if (frequencyCounter[i] == 9 && stepped[i]){//10 micros
             digitalWriteFast(stepPin[i], LOW);// Step off
         }
 
         if(frequencyCounter[i] >= frequencyTarget[i]){
             frequencyCounter[i] = 0;
-
+            
             if(currentPositionSteps[i] < targetPositionSteps[i] && currentPositionSteps[i] < maximumPositionSteps[i]) {
                 currentPositionSteps[i]++;
 
-                digitalWriteFast(dirPin[i], HIGH);// Set Direction
+                digitalWriteFast(dirPin[i], direction[i]);// Set Direction
                 digitalWriteFast(stepPin[i], HIGH);// Step on
+
+                stepped[i] = true;
             }
             else if (currentPositionSteps[i] > targetPositionSteps[i] && currentPositionSteps[i] > minimumPositionSteps[i]) {
                 currentPositionSteps[i]--;
                 
-                digitalWriteFast(dirPin[i], LOW);// Set Direction
+                digitalWriteFast(dirPin[i], !direction[i]);// Set Direction
                 digitalWriteFast(stepPin[i], HIGH);// Step on
+                
+                stepped[i] = true;
             }
         }
         
