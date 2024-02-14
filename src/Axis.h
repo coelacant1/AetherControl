@@ -21,7 +21,7 @@ private:
 
     float stepsPerMillimeter = 80.0f;
     bool homeMax = true;
-    bool isHomed = false;
+    bool isHoming = false;
     bool isRelative = false;
     bool isEnabled = false;
     bool newCommand = true;
@@ -52,8 +52,9 @@ public:
 
     void SetHomeDirection(bool towardsMax);
 
+    void ResetRelative();// Relative equivalent of homing
     void AutoHome(); // Perform auto-homing procedure
-    void Invert(bool invert);// Invert axis direction
+    void InvertDirection(bool invert);// Invert axis direction
     void Enable(); // Enables the stepper motor
     void Disable(); // Disables the stepper motor
     void SetStepsPerMillimeter(float stepsPerMM); // Configures steps per mm
@@ -65,22 +66,15 @@ public:
     float GetCurrentPosition(); // Returns the current position in mm
     float GetCurrentVelocity() const;
     float GetAcceleration() const;
-    
     float GetStepsPerMillimeter(); // Returns steps per mm
-    
-    float GetPreviousTargetPosition() const;
     float GetTargetPosition() const;// 
+    float GetPreviousTargetPosition() const;
     float GetTargetVelocity() const;// 
 
     void SetCurrentPosition(float position);
     void SetCurrentVelocity(float velocity);// Sets current control loop to velocity
-
     void SetTargetPosition(float targetPosition);// Returns constrained output
     void SetTargetVelocity(float targetVelocity);// Returns constrained output
-
-    float GetControlPreviousPosition();// Sets current control loop to position
-    void SetControlPosition(float position);// Sets current control loop to position
-    void SetControlFrequency(float hertz);// Sets current control loop frequency
 
     void Update();//Updates the current axis to follow the command set
 
@@ -122,50 +116,79 @@ void Axis<axisCount>::SetHomeDirection(bool towardsMax){
 }
 
 template<size_t axisCount>
-void Axis<axisCount>::AutoHome(){
-    float min, max;
-
-    if (homeMax){
-        min = axisLimits.minPosition;
-        max = axisLimits.maxPosition;
+void Axis<axisCount>::ResetRelative(){
+    if (isRelative){
+        SetCurrentPosition(0.0f);
+        SetTargetPosition(0.0f);
     }
     else{
-        min = axisLimits.maxPosition;
-        max = axisLimits.minPosition;
+        Serial.println("Axis is not relative, cannot be reset");
     }
-
-    SetCurrentPosition(min);
-    SetTargetPosition(max);
-    SetTargetVelocity(axisLimits.maxVelocity / 10.0f);
-
-    while(!ReadEndstop()){
-        Update();
-        delay(5);
-    }
-    
-    SetCurrentPosition(max);
-    SetTargetPosition(homeMax ? max - 5.0f : max + 5.0f);
-    SetTargetVelocity(axisLimits.maxVelocity / 50.0f);
-    
-    while(ReadEndstop() || !Mathematics::IsClose(GetCurrentPosition(), GetTargetPosition(), 0.01f)){
-        Update();
-        delay(5);
-    }
-
-    SetTargetPosition(max);
-    SetTargetVelocity(axisLimits.maxVelocity / 50.0f);
-
-    while(!ReadEndstop() || !Mathematics::IsClose(GetCurrentPosition(), GetTargetPosition(), 0.01f)){
-        Update();
-        delay(5);
-    }
-    
-    SetCurrentPosition(max);
-    SetTargetPosition(max);
 }
 
 template<size_t axisCount>
-void Axis<axisCount>::Invert(bool invert){
+void Axis<axisCount>::AutoHome(){
+    if(!isRelative){
+        float min, max;
+
+        // Temporarily assumes axis is relative to determine new homing location
+        PulseControl<axisCount>::DisableConstraints(instanceNumber);
+        isHoming = true;
+
+        if (homeMax){
+            min = axisLimits.minPosition;
+            max = axisLimits.maxPosition;
+        }
+        else{
+            min = axisLimits.maxPosition;
+            max = axisLimits.minPosition;
+        }
+
+        SetCurrentPosition(min);
+        SetTargetPosition(homeMax ? max + 5.0f : max - 5.0f);// Move 5mm past extreme limit
+        SetTargetVelocity(axisLimits.maxVelocity / 25.0f);
+
+        while(!ReadEndstop()){
+            Update();
+            delay(5);
+        }
+        
+        SetCurrentPosition(max);
+        SetTargetPosition(homeMax ? max - 5.0f : max + 5.0f);// Move 5mm below endstop distance
+        SetTargetVelocity(axisLimits.maxVelocity / 50.0f);
+        
+        while(ReadEndstop() || !Mathematics::IsClose(GetCurrentPosition(), GetTargetPosition(), 0.01f)){
+            Update();
+            delay(5);
+        }
+
+        SetTargetPosition(homeMax ? max + 5.0f : max - 5.0f);// Move 5mm past extreme limit
+        SetTargetVelocity(axisLimits.maxVelocity / 50.0f);
+
+        while(!ReadEndstop()){
+            Update();
+            delay(5);
+        }
+        
+        SetCurrentPosition(max);
+        SetTargetPosition(homeMax ? max - 5.0f : max + 5.0f);// Move 5mm below endstop distance
+        
+        while(ReadEndstop() || !Mathematics::IsClose(GetCurrentPosition(), GetTargetPosition(), 0.01f)){
+            Update();
+            delay(5);
+        }
+
+        // Sets axis back to absolute positioning
+        PulseControl<axisCount>::EnableConstraints(instanceNumber);
+        isHoming = false;
+    }
+    else{
+        Serial.println("Axis is relative, cannot be autohomed");
+    }
+}
+
+template<size_t axisCount>
+void Axis<axisCount>::InvertDirection(bool invert){
     PulseControl<axisCount>::SetDirection(invert);
 }
 
@@ -226,7 +249,7 @@ template<size_t axisCount>
 void Axis<axisCount>::SetCurrentPosition(float position){
     this->position = position;
 
-    PulseControl<axisCount>::SetCurrentPosition(instanceNumber, position * stepsPerMillimeter);
+    PulseControl<axisCount>::SetCurrentPosition(instanceNumber, this->position * stepsPerMillimeter);
 }
 
 template<size_t axisCount>
@@ -257,15 +280,30 @@ float Axis<axisCount>::GetTargetVelocity() const {
 template<size_t axisCount>
 void Axis<axisCount>::SetCurrentVelocity(float velocity){
     this->velocity = velocity;
+
+    long microseconds = 1000000L / Mathematics::Constrain(long(fabsf(velocity) * stepsPerMillimeter), 1L, 250000L);
+    
+    PulseControl<axisCount>::SetFrequency(instanceNumber, microseconds);
 }
 
 template<size_t axisCount>
 void Axis<axisCount>::SetTargetPosition(float targetPosition){
-    previousTargetPosition = this->targetPosition;
+    if(isRelative){
+        previousTargetPosition = this->targetPosition;
+        this->targetPosition = targetPosition;
+    }
+    else{
+        previousTargetPosition = this->targetPosition;
+        
+        if(!isHoming) this->targetPosition = Mathematics::Constrain(targetPosition, axisLimits.minPosition, axisLimits.maxPosition);
+        else {// Resets to relative position, always assuming it starts at zero
+            this->targetPosition = targetPosition;
+        }
+    }
     
-    this->targetPosition = Mathematics::Constrain(targetPosition, axisLimits.minPosition, axisLimits.maxPosition);
-
     newCommand = true;
+
+    PulseControl<axisCount>::SetTargetPosition(instanceNumber, this->targetPosition * stepsPerMillimeter);
 }
 
 template<size_t axisCount>
@@ -274,29 +312,9 @@ void Axis<axisCount>::SetTargetVelocity(float targetVelocity){
 }
 
 template<size_t axisCount>
-float Axis<axisCount>::GetControlPreviousPosition(){
-    return previousControlPosition;
-}
-
-template<size_t axisCount>
-void Axis<axisCount>::SetControlPosition(float position){
-    previousControlPosition = controlPosition;
-    controlPosition = position;
-
-    PulseControl<axisCount>::SetTargetPosition(instanceNumber, position * stepsPerMillimeter);
-}
-
-template<size_t axisCount>
-void Axis<axisCount>::SetControlFrequency(float hertz){
-    long microseconds = 1000000L / Mathematics::Constrain(long(hertz), 1L, 250000L);
-
-    PulseControl<axisCount>::SetFrequency(instanceNumber, microseconds);
-}
-
-template<size_t axisCount>
 void Axis<axisCount>::Update(){
     // Time since target velocity last changed
-    GetCurrentPosition();// Updates current position from step position
+    GetCurrentPosition();// Updates current position from absolute step position
 
     int direction = Mathematics::Sign(targetPosition - position);
 
@@ -336,15 +354,9 @@ void Axis<axisCount>::Update(){
     if (velocity > axisLimits.maxVelocity) velocity = axisLimits.maxVelocity;
     if (velocity < -axisLimits.maxVelocity) velocity = -axisLimits.maxVelocity;
 
-    if (Mathematics::IsClose(velocity, 0.0f, axisLimits.minVelocity)) velocity = 0.0f;
+    if (Mathematics::IsClose(velocity, axisLimits.minVelocity, 0.001f)) velocity = 0.0f;
 
     if (remainingDistance < 0.001f) velocity = 0;
 
-    long microseconds = 1000000L / Mathematics::Constrain(long(fabsf(velocity) * stepsPerMillimeter), 1L, 250000L);
-
-    SetControlPosition(targetPosition);
-
-    noInterrupts();
-    PulseControl<axisCount>::SetFrequency(instanceNumber, microseconds);
-    interrupts();
+    SetCurrentVelocity(velocity);
 }

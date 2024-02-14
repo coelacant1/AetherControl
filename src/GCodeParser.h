@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include "GCodeCommand.h"
 
+// Creates a GCode command object
 class GCodeParser {
 private:
     // Helper methods to extract specific parts of the G-code line

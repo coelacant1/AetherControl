@@ -4,7 +4,6 @@
 #include "..\ProtoTracer\Utils\Math\Mathematics.h"
 
 #include "Axis.h"
-#include "..\lib\ProtoTracer\Utils\Controls\PID.h"
 
 template<size_t axisCount>
 class PathPlanner {
@@ -15,7 +14,6 @@ private:
     float endPosition[axisCount];
     uint8_t currentAxes = 0;
     elapsedMicros sinceUpdate;
-    PID pid[axisCount];
 
     float velocity = 0.0f;
     float targetVelocity = 0.0f;
@@ -31,8 +29,6 @@ public:
 
     void CalculateLimits(float feedrate);
 
-    //void DetermineControlAxis(float feedrate);// Interpolate axes based on limits, current velocity, target velocity, current position, target position, etc
-
     bool Update();
 };
 
@@ -43,8 +39,6 @@ template<size_t axisCount>
 void PathPlanner<axisCount>::AddAxis(Axis<axisCount>* axis){
     if (currentAxes < axisCount){
         this->axes[currentAxes] = axis;
-
-        pid[currentAxes] = PID(100.0f, 0.0f, 0.0f);
 
         currentAxes++;
     }
@@ -58,8 +52,6 @@ void PathPlanner<axisCount>::CalculateLimits(float feedrate){
     
     //Calculate adjusted max feedrate, clamp feedrate
     for (int i = 0; i < currentAxes; i++){
-        pid[i].Reset();
-
         startPosition[i] = axes[i]->GetCurrentPosition();
         endPosition[i] = axes[i]->GetTargetPosition();
 
@@ -88,15 +80,10 @@ void PathPlanner<axisCount>::CalculateLimits(float feedrate){
 
 template<size_t axisCount>
 bool PathPlanner<axisCount>::Update(){
-    float dT = 0.0f;
+    float dT = 0.0001f;
 
-    if (!newCommand){
-        dT = float(sinceUpdate) / 1000000.0f;
-    }
-    else{
-        newCommand = false;
-        velocity = 0.0f;
-    }
+    if (!newCommand) dT = float(sinceUpdate) / 1000000.0f;
+    else velocity = 0.0f;
 
     sinceUpdate = 0;
 
@@ -118,14 +105,21 @@ bool PathPlanner<axisCount>::Update(){
     ratio = Mathematics::Constrain(ratio + velocity * dT, 0.0f, 1.0f);
 
     for (int i = 0; i < currentAxes; i++){
-        //last steps per second from previous window
-        //dT by steps / previous axis velocity
-        float controlPosition = Mathematics::Map(ratio, 0.0f, 1.0f, startPosition[i], endPosition[i]);
-        float frequency = (fabsf(controlPosition - axes[i]->GetControlPreviousPosition()) / dT) * axes[i]->GetStepsPerMillimeter();
+        // Last steps per second from previous window
+        float targetPosition = Mathematics::Map(ratio, 0.0f, 1.0f, startPosition[i], endPosition[i]);
+
+        if(newCommand){// Prevents initial impulse from rapid change in velocity estimation
+            axes[i]->SetTargetPosition(targetPosition);
+            axes[i]->SetTargetPosition(targetPosition);
+        }
+
+        float velocity = fabsf(targetPosition - axes[i]->GetPreviousTargetPosition()) / (dT * 2.0f);
         
-        axes[i]->SetControlFrequency(frequency / 2.0f);//fabsf(pid[i].Calculate(axes[i]->GetTargetPosition(), axes[i]->GetCurrentPosition(), dT)));//20000);// Counter intuitive, but target position will only allow minimal movement as long as this is updated enough
-        axes[i]->SetControlPosition(controlPosition);// Sets the target position along the mapped N-dimensional line
+        axes[i]->SetCurrentVelocity(velocity);
+        axes[i]->SetTargetPosition(targetPosition);
     }
+
+    if(newCommand) newCommand = false;
 
     return !Mathematics::IsClose(ratio, 1.0f, 0.001f);
 }

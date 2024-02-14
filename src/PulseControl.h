@@ -23,8 +23,11 @@ private:
     static volatile long frequencyCounter[axisCount];
     static volatile long frequencyTarget[axisCount];
     static volatile bool stepped[axisCount];
+    static volatile bool useConstraints[axisCount];
     
 public:
+    static void Initialize();
+
     static void SetPins(uint8_t instanceNumber, uint8_t stepPin, uint8_t dirPin);
 
     static void SetDirection(uint8_t instanceNumber, bool direction);
@@ -45,6 +48,8 @@ public:
 
     static void Disable();
 
+    static void EnableConstraints(uint8_t instanceNumber);
+    static void DisableConstraints(uint8_t instanceNumber);
 };
 
 
@@ -72,6 +77,15 @@ template<size_t axisCount>
 volatile long PulseControl<axisCount>::frequencyTarget[axisCount];
 template<size_t axisCount>
 volatile bool PulseControl<axisCount>::stepped[axisCount];
+template<size_t axisCount>
+volatile bool PulseControl<axisCount>::useConstraints[axisCount];
+
+template<size_t axisCount>
+void PulseControl<axisCount>::Initialize(){
+    for (int i = 0; i < uint8_t(axisCount); i++){
+        useConstraints[i] = false;
+    }
+}
 
 template<size_t axisCount>
 void PulseControl<axisCount>::SetPins(uint8_t instanceNumber, uint8_t stepPin, uint8_t dirPin) {
@@ -95,6 +109,8 @@ void PulseControl<axisCount>::SetConstraints(uint8_t instanceNumber, long minimu
     PulseControl::maximumPositionSteps[instanceNumber] = maximumPositionSteps;
 
     avgFilt[instanceNumber] = RunningAverageFilter<10>(0.1f);
+    
+    useConstraints[instanceNumber] = true;
     interrupts();
 }
 
@@ -136,12 +152,14 @@ void PulseControl<axisCount>::AutoStepControl(){// Controlled by interval timer
 
         if (frequencyCounter[i] == 9 && stepped[i]){//10 micros
             digitalWriteFast(stepPin[i], LOW);// Step off
+
+            stepped[i] = false;
         }
 
         if(frequencyCounter[i] >= frequencyTarget[i]){
             frequencyCounter[i] = 0;
             
-            if(currentPositionSteps[i] < targetPositionSteps[i] && currentPositionSteps[i] < maximumPositionSteps[i]) {
+            if(currentPositionSteps[i] < targetPositionSteps[i] && (currentPositionSteps[i] < maximumPositionSteps[i] || !useConstraints[i])) {
                 currentPositionSteps[i]++;
 
                 digitalWriteFast(dirPin[i], direction[i]);// Set Direction
@@ -149,7 +167,7 @@ void PulseControl<axisCount>::AutoStepControl(){// Controlled by interval timer
 
                 stepped[i] = true;
             }
-            else if (currentPositionSteps[i] > targetPositionSteps[i] && currentPositionSteps[i] > minimumPositionSteps[i]) {
+            else if (currentPositionSteps[i] > targetPositionSteps[i] && (currentPositionSteps[i] > minimumPositionSteps[i] || !useConstraints[i])) {
                 currentPositionSteps[i]--;
                 
                 digitalWriteFast(dirPin[i], !direction[i]);// Set Direction
@@ -171,4 +189,14 @@ void PulseControl<axisCount>::Enable(){
 template<size_t axisCount>
 void PulseControl<axisCount>::Disable(){
     pulseTimer.end();
+}
+
+template<size_t axisCount>
+void PulseControl<axisCount>::EnableConstraints(uint8_t instanceNumber){
+    useConstraints[instanceNumber] = true;
+}
+
+template<size_t axisCount>
+void PulseControl<axisCount>::DisableConstraints(uint8_t instanceNumber){
+    useConstraints[instanceNumber] = false;
 }
