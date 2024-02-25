@@ -4,81 +4,68 @@
 #include <IntervalTimer.h>
 #include <functional>
 
+#include "IPulseControl.h"
+
 #include "..\ProtoTracer\Utils\Math\Mathematics.h"
 #include "..\ProtoTracer\Utils\Filter\RunningAverageFilter.h"
 
 IntervalTimer pulseTimer;
 
 template<size_t axisCount>
-class PulseControl {
+class PulseControl : public IPulseControl {
 private:
-    static RunningAverageFilter<10> avgFilt[axisCount];
-    static volatile uint8_t dirPin[axisCount];
-    static volatile uint8_t stepPin[axisCount];
-    static volatile bool direction[axisCount];
-    static volatile long currentPositionSteps[axisCount];
-    static volatile long targetPositionSteps[axisCount];
-    static volatile long minimumPositionSteps[axisCount];
-    static volatile long maximumPositionSteps[axisCount];
-    static volatile long frequencyCounter[axisCount];
-    static volatile long frequencyTarget[axisCount];
-    static volatile bool stepped[axisCount];
-    static volatile bool useConstraints[axisCount];
+    static const uint8_t maxInstances = 2;
+    static PulseControl<axisCount>* instances[maxInstances];// 4 timers
+    static size_t instanceCount;
+    
+    RunningAverageFilter<10> avgFilt[axisCount];
+    volatile uint8_t dirPin[axisCount];
+    volatile uint8_t stepPin[axisCount];
+    volatile bool direction[axisCount];
+    volatile long currentPositionSteps[axisCount];
+    volatile long targetPositionSteps[axisCount];
+    volatile long minimumPositionSteps[axisCount];
+    volatile long maximumPositionSteps[axisCount];
+    volatile long frequencyCounter[axisCount];
+    volatile long frequencyTarget[axisCount];
+    volatile bool stepped[axisCount];
+    volatile bool useConstraints[axisCount];
     
 public:
-    static void Initialize();
+    PulseControl();
 
-    static void SetPins(uint8_t instanceNumber, uint8_t stepPin, uint8_t dirPin);
+    void Initialize() override;
 
-    static void SetDirection(uint8_t instanceNumber, bool direction);
+    void SetPins(uint8_t instanceNumber, uint8_t stepPin, uint8_t dirPin) override;
+    void SetDirection(uint8_t instanceNumber, bool direction) override;
+    void SetConstraints(uint8_t instanceNumber, long minimumPositionSteps, long maximumPositionSteps) override;
+    void SetTargetPosition(uint8_t instanceNumber, long targetPosition) override;
+    void SetFrequency(uint8_t instanceNumber, long microseconds) override;
+
+    void AutoStepControl() override;
+
+    long GetCurrentPosition(uint8_t instanceNumber) override;
+    void SetCurrentPosition(uint8_t instanceNumber, long currentPositionSteps) override;
+
+    void Enable() override;
+    void Disable() override;
+
+    void EnableConstraints(uint8_t instanceNumber) override;
+    void DisableConstraints(uint8_t instanceNumber) override;
     
-    static void SetConstraints(uint8_t instanceNumber, long minimumPositionSteps, long maximumPositionSteps);
-
-    static void SetTargetPosition(uint8_t instanceNumber, long targetPosition);
-    
-    static void SetFrequency(uint8_t instanceNumber, long microseconds);
-
-    static void AutoStepControl();
-
-    static long GetCurrentPosition(uint8_t instanceNumber);
-
-    static void SetCurrentPosition(uint8_t instanceNumber, long currentPositionSteps);
-
-    static void Enable();
-
-    static void Disable();
-
-    static void EnableConstraints(uint8_t instanceNumber);
-    static void DisableConstraints(uint8_t instanceNumber);
+    static void StaticTimerCallback();
 };
 
+template<size_t axisCount>
+PulseControl<axisCount>* PulseControl<axisCount>::instances[maxInstances] = {nullptr};
 
-IntervalTimer stepControlTimer;
+template<size_t axisCount>
+size_t PulseControl<axisCount>::instanceCount = 0;
 
 template<size_t axisCount>
-RunningAverageFilter<10> PulseControl<axisCount>::avgFilt[axisCount];
-template<size_t axisCount>
-volatile uint8_t PulseControl<axisCount>::dirPin[axisCount];
-template<size_t axisCount>
-volatile uint8_t PulseControl<axisCount>::stepPin[axisCount];
-template<size_t axisCount>
-volatile bool PulseControl<axisCount>::direction[axisCount];
-template<size_t axisCount>
-volatile long PulseControl<axisCount>::currentPositionSteps[axisCount];
-template<size_t axisCount>
-volatile long PulseControl<axisCount>::targetPositionSteps[axisCount];
-template<size_t axisCount>
-volatile long PulseControl<axisCount>::minimumPositionSteps[axisCount];
-template<size_t axisCount>
-volatile long PulseControl<axisCount>::maximumPositionSteps[axisCount];
-template<size_t axisCount>
-volatile long PulseControl<axisCount>::frequencyCounter[axisCount];
-template<size_t axisCount>
-volatile long PulseControl<axisCount>::frequencyTarget[axisCount];
-template<size_t axisCount>
-volatile bool PulseControl<axisCount>::stepped[axisCount];
-template<size_t axisCount>
-volatile bool PulseControl<axisCount>::useConstraints[axisCount];
+PulseControl<axisCount>::PulseControl(){
+    if (instanceCount < maxInstances) instances[instanceCount++] = this;
+}
 
 template<size_t axisCount>
 void PulseControl<axisCount>::Initialize(){
@@ -149,7 +136,6 @@ void PulseControl<axisCount>::SetCurrentPosition(uint8_t instanceNumber, long st
 template<size_t axisCount>
 void PulseControl<axisCount>::AutoStepControl(){// Controlled by interval timer
     for(uint8_t i = 0; i < axisCount; i++){
-
         if (frequencyCounter[i] == 9 && stepped[i]){//10 micros
             digitalWriteFast(stepPin[i], LOW);// Step off
 
@@ -182,8 +168,15 @@ void PulseControl<axisCount>::AutoStepControl(){// Controlled by interval timer
 }
 
 template<size_t axisCount>
+void PulseControl<axisCount>::StaticTimerCallback(){
+    // Call the member function for each registered instance
+    if (instances[0] != nullptr) instances[0]->AutoStepControl();
+    if (instances[1] != nullptr) instances[1]->AutoStepControl();
+}
+
+template<size_t axisCount>
 void PulseControl<axisCount>::Enable(){
-    pulseTimer.begin(PulseControl<axisCount>::AutoStepControl, 1);//1MHz max update rate
+    pulseTimer.begin(StaticTimerCallback, 1);//1MHz max update rate
 }
 
 template<size_t axisCount>

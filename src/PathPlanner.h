@@ -1,15 +1,15 @@
 //handles list of gcode command objects
 //iterates through list
+#pragma once
 
 #include "..\ProtoTracer\Utils\Math\Mathematics.h"
 
-#include "Axis.h"
+#include "IPathPlanner.h"
 
 template<size_t axisCount>
-class PathPlanner {
+class PathPlanner : public IPathPlanner{
 private:
-
-    Axis<axisCount>* axes[axisCount];
+    Axis* axes[axisCount];
     float startPosition[axisCount];
     float endPosition[axisCount];
     uint8_t currentAxes = 0;
@@ -25,23 +25,34 @@ private:
 public:
     PathPlanner();
 
-    void AddAxis(Axis<axisCount>* axis);
+    void AddAxis(Axis* axis) override;
+    Axis* GetAxis(int axisIndex) override;
+    uint8_t GetAxisCount() override;
+    void CalculateLimits(float feedrate) override;
+    bool Update() override;
 
-    void CalculateLimits(float feedrate);
-
-    bool Update();
 };
 
 template<size_t axisCount>
 PathPlanner<axisCount>::PathPlanner(){}
 
 template<size_t axisCount>
-void PathPlanner<axisCount>::AddAxis(Axis<axisCount>* axis){
+void PathPlanner<axisCount>::AddAxis(Axis* axis){
     if (currentAxes < axisCount){
         this->axes[currentAxes] = axis;
 
         currentAxes++;
     }
+}
+
+template<size_t axisCount>
+Axis* PathPlanner<axisCount>::GetAxis(int axisIndex){
+    return this->axes[axisIndex];
+}
+
+template<size_t axisCount>
+uint8_t PathPlanner<axisCount>::GetAxisCount(){
+    return currentAxes;
 }
 
 template<size_t axisCount>
@@ -57,8 +68,8 @@ void PathPlanner<axisCount>::CalculateLimits(float feedrate){
 
         axisDistance[i] = fabsf(endPosition[i] - startPosition[i]);
 
-        feedrate = Mathematics::Constrain(feedrate, axes[i]->GetAxisLimits().minVelocity, axes[i]->GetAxisLimits().maxVelocity);// Clamp to axis feedrate
-        acceleration = Mathematics::Min(acceleration, axes[i]->GetAcceleration());
+        feedrate = Mathematics::Constrain(feedrate, axes[i]->GetAxisConstraints()->GetMinVelocity(), axes[i]->GetAxisConstraints()->GetMaxVelocity());// Clamp to axis feedrate
+        acceleration = Mathematics::Min(acceleration, axes[i]->GetAxisConstraints()->GetAcceleration());
     }
 
     float distance = 0.0f;

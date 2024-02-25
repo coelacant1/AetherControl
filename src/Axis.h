@@ -2,24 +2,21 @@
 
 #include <Arduino.h>
 
-#include "..\ProtoTracer\Utils\Math\Mathematics.h"
-
-#include "AxisLimits.h"
+#include "AxisConstraints.h"
 #include "Constants.h"
-#include "PulseControl.h"
+#include "IPulseControl.h"
 
-template<size_t axisCount>
 class Axis {
 private:
     static uint8_t instanceCount;
     uint8_t instanceNumber = 0;
-    AxisLimits axisLimits;
+    IPulseControl* pulseControl;
+    AxisConstraints* axisConstraints;
     uint8_t stepPin = -1;
     uint8_t dirPin = -1;
     uint8_t enablePin = -1;
     uint8_t endstopPin = -1;
 
-    float stepsPerMillimeter = 80.0f;
     bool homeMax = true;
     bool isHoming = false;
     bool isRelative = false;
@@ -35,20 +32,16 @@ private:
     
     float position = 0.0f;//mm
     float velocity = 0.0f;//mm/s
-    float acceleration = 0.0f;//mm/s2
-    float jerk = 0.0f;//mm/s3
 
     float lastTravelEstimate;
     elapsedMicros sinceTravelEstimate;
     elapsedMicros sinceUpdate;
 
 public:
-    Axis(uint8_t stepPin, uint8_t dirPin, uint8_t enablePin, float stepsPerMillimeter, float acceleration); // Relative axis
-    Axis(uint8_t stepPin, uint8_t dirPin, uint8_t enablePin, uint8_t endstopPin, float stepsPerMillimeter, float acceleration); // Absolute axis
+    Axis(IPulseControl* pulseControl, AxisConstraints* axisConstraints, uint8_t stepPin, uint8_t dirPin, uint8_t enablePin); // Relative axis
+    Axis(IPulseControl* pulseControl, AxisConstraints* axisConstraints, uint8_t stepPin, uint8_t dirPin, uint8_t enablePin, uint8_t endstopPin); // Absolute axis
 
     void Initialize();
-
-    void SetAxisLimits(AxisLimits axisLimits);
 
     void SetHomeDirection(bool towardsMax);
 
@@ -57,16 +50,13 @@ public:
     void InvertDirection(bool invert);// Invert axis direction
     void Enable(); // Enables the stepper motor
     void Disable(); // Disables the stepper motor
-    void SetStepsPerMillimeter(float stepsPerMM); // Configures steps per mm
-    void SetAcceleration(float acceleration);
 
+    bool IsRelative() const;
     bool ReadEndstop() const; // Reads the endstop state
 
-    AxisLimits GetAxisLimits();
+    AxisConstraints* GetAxisConstraints();
     float GetCurrentPosition(); // Returns the current position in mm
     float GetCurrentVelocity() const;
-    float GetAcceleration() const;
-    float GetStepsPerMillimeter(); // Returns steps per mm
     float GetTargetPosition() const;// 
     float GetPreviousTargetPosition() const;
     float GetTargetVelocity() const;// 
@@ -80,23 +70,23 @@ public:
 
 };
 
-template<size_t axisCount>
-uint8_t Axis<axisCount>::instanceCount = 0;
+uint8_t Axis::instanceCount = 0;
 
-template<size_t axisCount>
-Axis<axisCount>::Axis(uint8_t stepPin, uint8_t dirPin, uint8_t enablePin, float stepsPerMillimeter, float acceleration) : stepPin(stepPin), dirPin(dirPin), enablePin(enablePin), stepsPerMillimeter(stepsPerMillimeter), acceleration(acceleration) {
+Axis::Axis(IPulseControl* pulseControl, AxisConstraints* axisConstraints, uint8_t stepPin, uint8_t dirPin, uint8_t enablePin) : pulseControl(pulseControl), axisConstraints(axisConstraints), stepPin(stepPin), dirPin(dirPin), enablePin(enablePin) {
     isRelative = true;
 
     instanceNumber = instanceCount++;
+    
+    pulseControl->SetConstraints(instanceNumber, axisConstraints->GetMinPosition() * axisConstraints->GetStepsPerMillimeter(), axisConstraints->GetMaxPosition() * axisConstraints->GetStepsPerMillimeter());
 }
 
-template<size_t axisCount>
-Axis<axisCount>::Axis(uint8_t stepPin, uint8_t dirPin, uint8_t enablePin, uint8_t endstopPin, float stepsPerMillimeter, float acceleration) : stepPin(stepPin), dirPin(dirPin), enablePin(enablePin), endstopPin(endstopPin), stepsPerMillimeter(stepsPerMillimeter), acceleration(acceleration) {
+Axis::Axis(IPulseControl* pulseControl, AxisConstraints* axisConstraints, uint8_t stepPin, uint8_t dirPin, uint8_t enablePin, uint8_t endstopPin) : pulseControl(pulseControl), axisConstraints(axisConstraints), stepPin(stepPin), dirPin(dirPin), enablePin(enablePin), endstopPin(endstopPin) {
     instanceNumber = instanceCount++;
+    
+    pulseControl->SetConstraints(instanceNumber, axisConstraints->GetMinPosition() * axisConstraints->GetStepsPerMillimeter(), axisConstraints->GetMaxPosition() * axisConstraints->GetStepsPerMillimeter());
 }
 
-template<size_t axisCount>
-void Axis<axisCount>::Initialize(){
+void Axis::Initialize(){
     pinMode(stepPin, OUTPUT);
     pinMode(dirPin, OUTPUT);
     pinMode(enablePin, OUTPUT);
@@ -105,18 +95,14 @@ void Axis<axisCount>::Initialize(){
         pinMode(endstopPin, INPUT_PULLUP);
     }
 
-    PulseControl<axisCount>::SetPins(instanceNumber, stepPin, dirPin);
-    
-    acceleration = Mathematics::Constrain(acceleration, 100.0f, axisLimits.maxAcceleration);
+    pulseControl->SetPins(instanceNumber, stepPin, dirPin);
 }
 
-template<size_t axisCount>
-void Axis<axisCount>::SetHomeDirection(bool towardsMax){
+void Axis::SetHomeDirection(bool towardsMax){
     this->homeMax = towardsMax;
 }
 
-template<size_t axisCount>
-void Axis<axisCount>::ResetRelative(){
+void Axis::ResetRelative(){
     if (isRelative){
         SetCurrentPosition(0.0f);
         SetTargetPosition(0.0f);
@@ -126,27 +112,26 @@ void Axis<axisCount>::ResetRelative(){
     }
 }
 
-template<size_t axisCount>
-void Axis<axisCount>::AutoHome(){
+void Axis::AutoHome(){
     if(!isRelative){
         float min, max;
-
+        
         // Temporarily assumes axis is relative to determine new homing location
-        PulseControl<axisCount>::DisableConstraints(instanceNumber);
+        pulseControl->DisableConstraints(instanceNumber);
         isHoming = true;
 
         if (homeMax){
-            min = axisLimits.minPosition;
-            max = axisLimits.maxPosition;
+            min = axisConstraints->GetMinPosition();
+            max = axisConstraints->GetMaxPosition();
         }
         else{
-            min = axisLimits.maxPosition;
-            max = axisLimits.minPosition;
+            min = axisConstraints->GetMaxPosition();
+            max = axisConstraints->GetMinPosition();
         }
 
         SetCurrentPosition(min);
         SetTargetPosition(homeMax ? max + 5.0f : max - 5.0f);// Move 5mm past extreme limit
-        SetTargetVelocity(axisLimits.maxVelocity / 25.0f);
+        SetTargetVelocity(axisConstraints->GetMaxVelocity() / 25.0f);
 
         while(!ReadEndstop()){
             Update();
@@ -155,15 +140,15 @@ void Axis<axisCount>::AutoHome(){
         
         SetCurrentPosition(max);
         SetTargetPosition(homeMax ? max - 5.0f : max + 5.0f);// Move 5mm below endstop distance
-        SetTargetVelocity(axisLimits.maxVelocity / 50.0f);
-        
+        SetTargetVelocity(axisConstraints->GetMaxVelocity() / 50.0f);
+
         while(ReadEndstop() || !Mathematics::IsClose(GetCurrentPosition(), GetTargetPosition(), 0.01f)){
             Update();
             delay(5);
         }
 
         SetTargetPosition(homeMax ? max + 5.0f : max - 5.0f);// Move 5mm past extreme limit
-        SetTargetVelocity(axisLimits.maxVelocity / 50.0f);
+        SetTargetVelocity(axisConstraints->GetMaxVelocity() / 50.0f);
 
         while(!ReadEndstop()){
             Update();
@@ -172,14 +157,15 @@ void Axis<axisCount>::AutoHome(){
         
         SetCurrentPosition(max);
         SetTargetPosition(homeMax ? max - 5.0f : max + 5.0f);// Move 5mm below endstop distance
-        
+
+
         while(ReadEndstop() || !Mathematics::IsClose(GetCurrentPosition(), GetTargetPosition(), 0.01f)){
             Update();
             delay(5);
         }
 
         // Sets axis back to absolute positioning
-        PulseControl<axisCount>::EnableConstraints(instanceNumber);
+        pulseControl->EnableConstraints(instanceNumber);
         isHoming = false;
     }
     else{
@@ -187,107 +173,70 @@ void Axis<axisCount>::AutoHome(){
     }
 }
 
-template<size_t axisCount>
-void Axis<axisCount>::InvertDirection(bool invert){
-    PulseControl<axisCount>::SetDirection(invert);
+void Axis::InvertDirection(bool invert){
+    pulseControl->SetDirection(instanceNumber, invert);
 }
 
-template<size_t axisCount>
-void Axis<axisCount>::SetAxisLimits(AxisLimits axisLimits){
-    this->axisLimits = axisLimits;
-
-    PulseControl<axisCount>::SetConstraints(instanceNumber, axisLimits.minPosition * stepsPerMillimeter, axisLimits.maxPosition * stepsPerMillimeter);
-}
-
-template<size_t axisCount>
-void Axis<axisCount>::Enable(){
+void Axis::Enable(){
     digitalWriteFast(enablePin, LOW);
     isEnabled = true;
 }
 
-template<size_t axisCount>
-void Axis<axisCount>::SetStepsPerMillimeter(float stepsPerMillimeter){
-    this->stepsPerMillimeter = stepsPerMillimeter;
+
+bool Axis::IsRelative() const {
+    return isRelative;
 }
 
-template<size_t axisCount>
-void Axis<axisCount>::SetAcceleration(float acceleration){
-    acceleration = Mathematics::Constrain(acceleration, 100.0f, axisLimits.maxAcceleration);
-
-    this->acceleration = acceleration;
-}
-
-template<size_t axisCount>
-bool Axis<axisCount>::ReadEndstop() const {
+bool Axis::ReadEndstop() const {
     return digitalRead(endstopPin);
 }
 
-template<size_t axisCount>
-void Axis<axisCount>::Disable(){
+AxisConstraints* Axis::GetAxisConstraints(){
+    return axisConstraints;
+}
+
+void Axis::Disable(){
     digitalWriteFast(enablePin, HIGH);
     isEnabled = false;
 }
 
-template<size_t axisCount>
-AxisLimits Axis<axisCount>::GetAxisLimits(){
-    return axisLimits;
-}
-
-template<size_t axisCount>
-float Axis<axisCount>::GetStepsPerMillimeter(){ // Returns steps per mm
-    return stepsPerMillimeter;
-}
-
-template<size_t axisCount>
-float Axis<axisCount>::GetCurrentPosition() {
-    position = PulseControl<axisCount>::GetCurrentPosition(instanceNumber) / stepsPerMillimeter;
+float Axis::GetCurrentPosition() {
+    position = pulseControl->GetCurrentPosition(instanceNumber) / axisConstraints->GetStepsPerMillimeter();
 
     return position;
 }
 
-template<size_t axisCount>
-void Axis<axisCount>::SetCurrentPosition(float position){
+void Axis::SetCurrentPosition(float position){
     this->position = position;
 
-    PulseControl<axisCount>::SetCurrentPosition(instanceNumber, this->position * stepsPerMillimeter);
+    pulseControl->SetCurrentPosition(instanceNumber, this->position * axisConstraints->GetStepsPerMillimeter());
 }
 
-template<size_t axisCount>
-float Axis<axisCount>::GetCurrentVelocity() const {
+float Axis::GetCurrentVelocity() const {
     return velocity;
 }
 
-template<size_t axisCount>
-float Axis<axisCount>::GetAcceleration() const {
-    return acceleration;
-}
-
-template<size_t axisCount>
-float Axis<axisCount>::GetPreviousTargetPosition() const {
+float Axis::GetPreviousTargetPosition() const {
     return previousTargetPosition;
 }
 
-template<size_t axisCount>
-float Axis<axisCount>::GetTargetPosition() const {
+float Axis::GetTargetPosition() const {
     return targetPosition;
 }
 
-template<size_t axisCount>
-float Axis<axisCount>::GetTargetVelocity() const {
+float Axis::GetTargetVelocity() const {
     return targetVelocity;
 }
 
-template<size_t axisCount>
-void Axis<axisCount>::SetCurrentVelocity(float velocity){
+void Axis::SetCurrentVelocity(float velocity){
     this->velocity = velocity;
 
-    long microseconds = 1000000L / Mathematics::Constrain(long(fabsf(velocity) * stepsPerMillimeter), 1L, 250000L);
+    long microseconds = 1000000L / Mathematics::Constrain(long(fabsf(velocity) * axisConstraints->GetStepsPerMillimeter()), 1L, 250000L);
     
-    PulseControl<axisCount>::SetFrequency(instanceNumber, microseconds);
+    pulseControl->SetFrequency(instanceNumber, microseconds);
 }
 
-template<size_t axisCount>
-void Axis<axisCount>::SetTargetPosition(float targetPosition){
+void Axis::SetTargetPosition(float targetPosition){
     if(isRelative){
         previousTargetPosition = this->targetPosition;
         this->targetPosition = targetPosition;
@@ -295,7 +244,7 @@ void Axis<axisCount>::SetTargetPosition(float targetPosition){
     else{
         previousTargetPosition = this->targetPosition;
         
-        if(!isHoming) this->targetPosition = Mathematics::Constrain(targetPosition, axisLimits.minPosition, axisLimits.maxPosition);
+        if(!isHoming) this->targetPosition = Mathematics::Constrain(targetPosition, axisConstraints->GetMinPosition(), axisConstraints->GetMaxPosition());
         else {// Resets to relative position, always assuming it starts at zero
             this->targetPosition = targetPosition;
         }
@@ -303,16 +252,14 @@ void Axis<axisCount>::SetTargetPosition(float targetPosition){
     
     newCommand = true;
 
-    PulseControl<axisCount>::SetTargetPosition(instanceNumber, this->targetPosition * stepsPerMillimeter);
+    pulseControl->SetTargetPosition(instanceNumber, this->targetPosition * axisConstraints->GetStepsPerMillimeter());
 }
 
-template<size_t axisCount>
-void Axis<axisCount>::SetTargetVelocity(float targetVelocity){
-    this->targetVelocity = Mathematics::Constrain(targetVelocity, axisLimits.minVelocity, axisLimits.maxVelocity);
+void Axis::SetTargetVelocity(float targetVelocity){
+    this->targetVelocity = Mathematics::Constrain(targetVelocity, axisConstraints->GetMinVelocity(), axisConstraints->GetMaxVelocity());
 }
 
-template<size_t axisCount>
-void Axis<axisCount>::Update(){
+void Axis::Update(){
     // Time since target velocity last changed
     GetCurrentPosition();// Updates current position from absolute step position
 
@@ -330,9 +277,9 @@ void Axis<axisCount>::Update(){
 
     sinceUpdate = 0;
 
-    float velocityChange = acceleration * dT * float(direction);// Desired change in velocity based on acceleration
+    float velocityChange = axisConstraints->GetAcceleration() * dT * float(direction);// Desired change in velocity based on acceleration
     float remainingDistance = fabsf(targetPosition - position);// Acceleration or deceleration phase
-    float decelerationDistance = (velocity * velocity) / (2.0f * acceleration);// Stopping distance
+    float decelerationDistance = (velocity * velocity) / (2.0f * axisConstraints->GetAcceleration());// Stopping distance
 
     if (position < targetPosition) {// Move forward
         if (remainingDistance > decelerationDistance && fabsf(velocity) < targetVelocity){
@@ -351,10 +298,10 @@ void Axis<axisCount>::Update(){
         }
     }
 
-    if (velocity > axisLimits.maxVelocity) velocity = axisLimits.maxVelocity;
-    if (velocity < -axisLimits.maxVelocity) velocity = -axisLimits.maxVelocity;
+    if (velocity > axisConstraints->GetMaxVelocity()) velocity = axisConstraints->GetMaxVelocity();
+    if (velocity < -axisConstraints->GetMaxVelocity()) velocity = -axisConstraints->GetMaxVelocity();
 
-    if (Mathematics::IsClose(velocity, axisLimits.minVelocity, 0.001f)) velocity = 0.0f;
+    if (Mathematics::IsClose(velocity, axisConstraints->GetMinVelocity(), 0.001f)) velocity = 0.0f;
 
     if (remainingDistance < 0.001f) velocity = 0;
 
