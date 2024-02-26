@@ -3,7 +3,6 @@
 #include <Arduino.h>
 
 #include "AxisConstraints.h"
-#include "Constants.h"
 #include "IPulseControl.h"
 
 class Axis {
