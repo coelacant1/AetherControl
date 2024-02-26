@@ -26,9 +26,6 @@ void setup() {
     axisZ.Initialize();
     axisI.Initialize();
 
-    axisZ.Enable();
-    axisI.Enable();
-
     pathPlanner.AddAxis(&axisZ);
     pathPlanner.AddAxis(&axisI);
 

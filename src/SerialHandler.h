@@ -18,6 +18,9 @@ public:
     static void SendOK();
     static void SendNotImplemented();
     static void SendMessage(String message);
+    
+	template <typename T>
+    static void SendMessageValue(String message, T value);
 };
 
 
@@ -44,10 +47,10 @@ GCodeCommand SerialHandler::ReadCommand(){
     char incomingChar;
 
     while (true) {
-        if(Serial.available() > 0){
-            incomingChar = Serial.read();
+        if(serial->available() > 0){
+            incomingChar = serial->read();
             
-            Serial.print(incomingChar);
+            //serial->print(incomingChar);
             
             if (incomingChar == '\n') break;
 
@@ -61,8 +64,6 @@ GCodeCommand SerialHandler::ReadCommand(){
             }
             
         }
-
-        delay(1);
     }
     
     // Extract the command type and number
@@ -109,13 +110,19 @@ GCodeCommand SerialHandler::ReadCommand(){
 }
 
 void SerialHandler::SendOK(){
-    Serial.println("ok");
+    serial->println("ok");
 }
 
 void SerialHandler::SendNotImplemented(){
-    Serial.println("error");
+    serial->println("error");
 }
 
 void SerialHandler::SendMessage(String message){
-    Serial.println(message);
+    serial->println(message);
+}
+
+template <typename T>
+void SerialHandler::SendMessageValue(String message, T value){
+    serial->print(message); serial->print(": ");
+    serial->println(value);
 }
