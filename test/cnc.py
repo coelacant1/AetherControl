@@ -3,7 +3,7 @@ import time
 import os
 
 # Function to initialize the serial connection
-def init_serial_connection(port='COM6', baud_rate=115200):
+def init_serial_connection(port='COM9', baud_rate=9600):
     try:
         ser = serial.Serial(port, baud_rate, timeout=1, bytesize=8, parity='N', stopbits=1)
         if ser.isOpen():

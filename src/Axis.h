@@ -4,6 +4,7 @@
 
 #include "AxisConstraints.h"
 #include "IPulseControl.h"
+#include "SerialHandler.h"
 
 class Axis {
 private:
@@ -107,11 +108,11 @@ void Axis::ResetRelative(){
         SetTargetPosition(0.0f);
     }
     else{
-        Serial.println("Axis is not relative, cannot be reset");
+        SerialHandler::SendMessage("Axis is not relative, cannot be reset");
     }
 }
 
-void Axis::AutoHome(){
+void Axis::AutoHome(){// Cartesian only
     if(!isRelative){
         float min, max;
         
@@ -168,7 +169,7 @@ void Axis::AutoHome(){
         isHoming = false;
     }
     else{
-        Serial.println("Axis is relative, cannot be autohomed");
+        SerialHandler::SendMessage("Axis is relative, cannot be autohomed");
     }
 }
 

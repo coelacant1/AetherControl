@@ -63,13 +63,6 @@ void GCode::ExecuteGCode(GCodeCommand* gc){
     }
     else{
         SerialHandler::SendNotImplemented();
-
-        Serial.print("Error, CMD:\t");
-        Serial.print(gc->commandType); Serial.print('\t');
-        Serial.print(gc->commandNumber); Serial.print('\t');
-        Serial.print(gc->characters[0]); Serial.print('\t');
-        Serial.print(gc->values[0]);
-        Serial.println();
     }
 }
 

@@ -69,5 +69,5 @@ GCodeCommand GCodeHandler::ReadCommand(){
 }
 
 void GCodeHandler::SendOK(){
-    Serial.println("ok");
+    serial->println("ok");
 }

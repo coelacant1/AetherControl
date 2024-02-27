@@ -2,16 +2,15 @@
 
 #include <Arduino.h>
 #include "GCodeCommand.h"
-#include "GCode.h"
 
 // Creates a GCode command object
 class SerialHandler {
 private:
-    static usb_serial_class* serial;
+    static HardwareSerial * serial;
     static long baudrate;
 
 public:
-    static void SetSerialInterface(usb_serial_class& serial, long baudrate);
+    static void SetSerialInterface(HardwareSerial & serial, long baudrate);
     static void Initialize();
     static bool CommandAvailable();
     static GCodeCommand ReadCommand();
@@ -24,10 +23,10 @@ public:
 };
 
 
-usb_serial_class* SerialHandler::serial;
+HardwareSerial * SerialHandler::serial;
 long SerialHandler::baudrate;
 
-void SerialHandler::SetSerialInterface(usb_serial_class& serial, long baudrate){
+void SerialHandler::SetSerialInterface(HardwareSerial & serial, long baudrate){
     SerialHandler::serial = &serial;
     SerialHandler::baudrate = baudrate;
 }

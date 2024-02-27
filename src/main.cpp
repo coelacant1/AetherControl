@@ -11,7 +11,7 @@
 AxisConstraints axisLimitZ = AxisConstraints('Z', 0.0f, 48.0f, 0.01f, 1000.0f, 10000.0f, 1200.0f, 80.0f);
 AxisConstraints axisLimitI = AxisConstraints('I', -720.0f, 720.0f, 0.01f, 1000.0f, 10000.0f, 1200.0f, 80.0f);
 
-PathPlanner<2> pathPlanner = PathPlanner<2>();
+PathPlanner<2> pathPlanner = PathPlanner<2>(IPathPlanner::Cartesian);
 PulseControl<2> pulseControl = PulseControl<2>();
 
 GCode gCode = GCode(&pathPlanner);
@@ -19,12 +19,15 @@ GCode gCode = GCode(&pathPlanner);
 Axis axisZ = Axis(&pulseControl, &axisLimitZ, 6, 7, 5, 8);//8, 
 Axis axisI = Axis(&pulseControl, &axisLimitI, 3, 4, 2);
 
-WS2812B<5> wsLEDs = WS2812B<5>(9);
+WS2812B<20> wsLEDs = WS2812B<20>(9);
 
 void setup() {
     //initialize hardware
     axisZ.Initialize();
     axisI.Initialize();
+
+    axisZ.Disable();
+    axisI.Disable();
 
     pathPlanner.AddAxis(&axisZ);
     pathPlanner.AddAxis(&axisI);
@@ -40,9 +43,8 @@ void setup() {
 
     gCode.AddLEDs(&wsLEDs);
 
-    SerialHandler::SetSerialInterface(Serial, 115200);
+    SerialHandler::SetSerialInterface(Serial1, 9600);
     SerialHandler::Initialize();
-
     
     Serial.print("Z: "); Serial.print('\t');
     Serial.print(axisLimitZ.GetAcceleration()); Serial.print('\t');
