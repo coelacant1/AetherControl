@@ -9,7 +9,6 @@
 template<size_t axisCount>
 class PathPlanner : public IPathPlanner {
 private:
-    Kinematics kinematics;
     Axis* axes[axisCount];
     float startPosition[axisCount];
     float endPosition[axisCount];
@@ -24,7 +23,7 @@ private:
     bool newCommand = true;
 
 public:
-    PathPlanner(Kinematics kinematics);
+    PathPlanner();
 
     void AddAxis(Axis* axis) override;
     Axis* GetAxis(int axisIndex) override;
@@ -35,7 +34,7 @@ public:
 };
 
 template<size_t axisCount>
-PathPlanner<axisCount>::PathPlanner(Kinematics kinematics) : kinematics(kinematics) {}
+PathPlanner<axisCount>::PathPlanner() {}
 
 template<size_t axisCount>
 void PathPlanner<axisCount>::AddAxis(Axis* axis){

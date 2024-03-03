@@ -4,19 +4,19 @@
 #include "GCodeCommand.h"
 #include "SerialHandler.h"
 #include "IWS2812B.h"
-#include "IPathPlanner.h"
+#include "IKinematics.h"
 
 // Class for implementation of function calls for gcode commands
 class GCode {
 private:
     IWS2812B* leds;
-    IPathPlanner* pathPlanner;
+    IKinematics* kinematics;
 
 public:
-    GCode(IPathPlanner* pathPlanner);
+    GCode(IKinematics* kinematics);
 
     void AddLEDs(IWS2812B* leds);
-    void AddPathPlanner(IPathPlanner* pathPlanner);
+    void AddIKinematics(IKinematics* kinematics);
 
     void ExecuteGCode(GCodeCommand* gc);
 
@@ -32,14 +32,14 @@ public:
     
 };
 
-GCode::GCode(IPathPlanner* pathPlanner) : pathPlanner(pathPlanner) {}
+GCode::GCode(IKinematics* kinematics) : kinematics(kinematics) {}
 
 void GCode::AddLEDs(IWS2812B* leds){
     this->leds = leds;
 }
 
-void GCode::AddPathPlanner(IPathPlanner* pathPlanner){
-    this->pathPlanner = pathPlanner;
+void GCode::AddIKinematics(IKinematics* kinematics){
+    this->kinematics = kinematics;
 }
 
 void GCode::ExecuteGCode(GCodeCommand* gc){
@@ -76,18 +76,13 @@ void GCode::G0(GCodeCommand* gc){
             continue;
         }
         else{
-            for (int j = 0; j < pathPlanner->GetAxisCount(); j++){
-                if (pathPlanner->GetAxis(j)->GetAxisConstraints()->GetAxisLabel() == gc->characters[i]){
-                    pathPlanner->GetAxis(j)->SetTargetPosition(gc->values[i]);
-                    break;
-                }
+            for (int j = 0; j < kinematics->GetAxisCount(); j++){
+                kinematics->SetTargetPosition(gc->values[i], gc->characters[i]);
             }
         }
     }
 
-    pathPlanner->CalculateLimits(feedrate);
-
-    while (pathPlanner->Update()) delay(10);
+    kinematics->StartMove(feedrate);
 }
 
 // Linear move
@@ -109,36 +104,21 @@ void GCode::G4(GCodeCommand* gc){
 
 // Home all non-relative axes
 void GCode::G28(GCodeCommand* gc){
-    if (gc->parametersUsed == 0){
-        for (int i = 0; i < pathPlanner->GetAxisCount(); i++){
-            if (pathPlanner->GetAxis(i)->IsRelative()) pathPlanner->GetAxis(i)->ResetRelative();
-            else pathPlanner->GetAxis(i)->AutoHome();
-        }
-    }
-    else{
-        for (int i = 0; i < gc->parametersUsed; i++){
-            for (int j = 0; j < pathPlanner->GetAxisCount(); j++){
-                if (pathPlanner->GetAxis(j)->GetAxisConstraints()->GetAxisLabel() == gc->characters[i]){
-                    if (pathPlanner->GetAxis(j)->IsRelative()) pathPlanner->GetAxis(j)->ResetRelative();
-                    else pathPlanner->GetAxis(j)->AutoHome();
-                }
-            }
-        }
-    }
+    kinematics->HomeAxes();
 }
 
 // Enable steppers
 void GCode::M17(GCodeCommand* gc){
     if (gc->parametersUsed == 0){
-        for (int i = 0; i < pathPlanner->GetAxisCount(); i++){
-            pathPlanner->GetAxis(i)->Enable();
+        for (int i = 0; i < kinematics->GetAxisCount(); i++){
+            kinematics->GetAxis(i)->Enable();
         }
     }
     else{
         for (int i = 0; i < gc->parametersUsed; i++){
-            for (int j = 0; j < pathPlanner->GetAxisCount(); j++){
-                if (pathPlanner->GetAxis(j)->GetAxisConstraints()->GetAxisLabel() == gc->characters[i]){
-                    pathPlanner->GetAxis(j)->Enable();
+            for (int j = 0; j < kinematics->GetAxisCount(); j++){
+                if (kinematics->GetAxis(j)->GetAxisConstraints()->GetAxisLabel() == gc->characters[i]){
+                    kinematics->GetAxis(j)->Enable();
                 }
             }
         }
@@ -148,15 +128,15 @@ void GCode::M17(GCodeCommand* gc){
 // Disable steppers
 void GCode::M18(GCodeCommand* gc){
     if (gc->parametersUsed == 0){
-        for (int i = 0; i < pathPlanner->GetAxisCount(); i++){
-            pathPlanner->GetAxis(i)->Disable();
+        for (int i = 0; i < kinematics->GetAxisCount(); i++){
+            kinematics->GetAxis(i)->Disable();
         }
     }
     else{
         for (int i = 0; i < gc->parametersUsed; i++){
-            for (int j = 0; j < pathPlanner->GetAxisCount(); j++){
-                if (pathPlanner->GetAxis(j)->GetAxisConstraints()->GetAxisLabel() == gc->characters[i]){
-                    pathPlanner->GetAxis(j)->Disable();
+            for (int j = 0; j < kinematics->GetAxisCount(); j++){
+                if (kinematics->GetAxis(j)->GetAxisConstraints()->GetAxisLabel() == gc->characters[i]){
+                    kinematics->GetAxis(j)->Disable();
                 }
             }
         }

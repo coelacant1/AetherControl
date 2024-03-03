@@ -2,6 +2,8 @@
 
 #include "Axis.h"
 #include "GCode.h"
+#include "Cartesian.h"
+#include "CoreXY.h"
 #include "PathPlanner.h"
 #include "PulseControl.h"
 #include "SerialHandler.h"
@@ -11,10 +13,12 @@
 AxisConstraints axisLimitZ = AxisConstraints('Z', 0.0f, 48.0f, 0.01f, 1000.0f, 10000.0f, 1200.0f, 80.0f);
 AxisConstraints axisLimitI = AxisConstraints('I', -720.0f, 720.0f, 0.01f, 1000.0f, 10000.0f, 1200.0f, 80.0f);
 
-PathPlanner<2> pathPlanner = PathPlanner<2>(IPathPlanner::Cartesian);
+PathPlanner<2> pathPlanner = PathPlanner<2>();
 PulseControl<2> pulseControl = PulseControl<2>();
+//Cartesian<2> cartesian = Cartesian<2>(&pathPlanner);
+CoreXY<2> cartesian = CoreXY<2>(&pathPlanner, 0, 1, true, true, 300, 400);
 
-GCode gCode = GCode(&pathPlanner);
+GCode gCode = GCode(&cartesian);
 
 Axis axisZ = Axis(&pulseControl, &axisLimitZ, 6, 7, 5, 8);//8, 
 Axis axisI = Axis(&pulseControl, &axisLimitI, 3, 4, 2);

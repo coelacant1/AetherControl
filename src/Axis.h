@@ -140,7 +140,7 @@ void Axis::AutoHome(){// Cartesian only
         
         SetCurrentPosition(max);
         SetTargetPosition(homeMax ? max - 5.0f : max + 5.0f);// Move 5mm below endstop distance
-        SetTargetVelocity(axisConstraints->GetMaxVelocity() / 50.0f);
+        SetTargetVelocity(axisConstraints->GetMaxVelocity() / 25.0f);
 
         while(ReadEndstop() || !Mathematics::IsClose(GetCurrentPosition(), GetTargetPosition(), 0.01f)){
             Update();
