@@ -13,10 +13,9 @@
 AxisConstraints axisLimitZ = AxisConstraints('Z', 0.0f, 48.0f, 0.01f, 1000.0f, 10000.0f, 1200.0f, 80.0f);
 AxisConstraints axisLimitI = AxisConstraints('I', -720.0f, 720.0f, 0.01f, 1000.0f, 10000.0f, 1200.0f, 80.0f);
 
-PathPlanner<2> pathPlanner = PathPlanner<2>();
 PulseControl<2> pulseControl = PulseControl<2>();
-//Cartesian<2> cartesian = Cartesian<2>(&pathPlanner);
-CoreXY<2> cartesian = CoreXY<2>(&pathPlanner, 0, 1, true, true, 300, 400);
+Cartesian<2> cartesian = Cartesian<2>();
+//CoreXY<2> cartesian = CoreXY<2>(&pathPlanner, 0, 1, true, true, 300, 400);
 
 GCode gCode = GCode(&cartesian);
 
@@ -33,8 +32,8 @@ void setup() {
     axisZ.Disable();
     axisI.Disable();
 
-    pathPlanner.AddAxis(&axisZ);
-    pathPlanner.AddAxis(&axisI);
+    cartesian.AddAxis(&axisZ, IKinematics::Z);
+    cartesian.AddAxis(&axisI, IKinematics::I);
 
     axisZ.SetHomeDirection(true);
     
@@ -47,7 +46,7 @@ void setup() {
 
     gCode.AddLEDs(&wsLEDs);
 
-    SerialHandler::SetSerialInterface(Serial1, 9600);
+    SerialHandler::SetSerialInterface(Serial1, 38400);
     SerialHandler::Initialize();
     
     Serial.print("Z: "); Serial.print('\t');

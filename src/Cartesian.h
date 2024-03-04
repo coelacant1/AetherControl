@@ -5,7 +5,7 @@
 template<size_t axisCount>
 class Cartesian : public Kinematics<axisCount>{
 public:
-    Cartesian(IPathPlanner* pathPlanner);
+    Cartesian();
 
     bool SetTargetPosition(float position, char axisLabel) override;//return if axis exists
 
@@ -15,7 +15,7 @@ public:
 };
 
 template<size_t axisCount>
-Cartesian<axisCount>::Cartesian(IPathPlanner* pathPlanner) : Kinematics<axisCount>(pathPlanner) {}
+Cartesian<axisCount>::Cartesian() {}
 
 template<size_t axisCount>
 bool Cartesian<axisCount>::SetTargetPosition(float position, char axisLabel){
@@ -35,14 +35,15 @@ void Cartesian<axisCount>::StartMove(float feedrate){
         this->axes[i]->SetTargetPosition(this->axisTarget[i]);
     }
     
-    this->pathPlanner->CalculateLimits(feedrate);
+    this->pathPlanner.CalculateLimits(feedrate);
 
-    while (this->pathPlanner->Update()) delay(10);
+    while (this->pathPlanner.Update()) delay(10);
 }
 
 template<size_t axisCount>
 void Cartesian<axisCount>::HomeAxes(){
     for (uint8_t i = 0; i < this->currentAxes; i++){
-        this->axes[i]->AutoHome();
+        if(this->axes[i]->IsRelative()) this->axes[i]->ResetRelative();
+        else this->axes[i]->AutoHome();
     }
 }

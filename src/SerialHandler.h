@@ -6,11 +6,11 @@
 // Creates a GCode command object
 class SerialHandler {
 private:
-    static HardwareSerial * serial;
+    static HardwareSerial* serial;
     static long baudrate;
 
 public:
-    static void SetSerialInterface(HardwareSerial & serial, long baudrate);
+    static void SetSerialInterface(HardwareSerial& serial, long baudrate);
     static void Initialize();
     static bool CommandAvailable();
     static GCodeCommand ReadCommand();
@@ -23,10 +23,10 @@ public:
 };
 
 
-HardwareSerial * SerialHandler::serial;
+HardwareSerial* SerialHandler::serial;
 long SerialHandler::baudrate;
 
-void SerialHandler::SetSerialInterface(HardwareSerial & serial, long baudrate){
+void SerialHandler::SetSerialInterface(HardwareSerial& serial, long baudrate){
     SerialHandler::serial = &serial;
     SerialHandler::baudrate = baudrate;
 }

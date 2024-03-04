@@ -40,7 +40,7 @@ public:
 
     void AddAxis(Axis* axis, IKinematics::AxisLabel axisLabel) override;
     
-    Axis* GetAxis(char axisLabel) override;
+    Axis* GetAxis(uint8_t axisIndex) override;
 
     bool SetTargetPosition(float position, char axisLabel) override;//return if axis exists
 
@@ -166,21 +166,16 @@ void CoreXY<axisCount>::AddAxis(Axis* axis, IKinematics::AxisLabel axisLabel){
     else if (this->currentAxes < axisCount){
         this->axes[this->currentAxes] = axis;
         this->axisLabel[this->currentAxes] = axisLabel;
+        
+        this->pathPlanner->AddAxis(axis);
 
         this->currentAxes++;
     }
 }
 
 template<size_t axisCount>
-Axis* CoreXY<axisCount>::GetAxis(char axisLabel){
-    if (axisLabel == 'A') return axisA;
-    else if (axisLabel == 'B') return axisB;
-    
-    for (uint8_t i = 0; i < this->currentAxes; i++){
-        if (this->axisLabel[i] == axisLabel) return this->axes[i];
-    }
-
-    return nullptr;
+Axis* CoreXY<axisCount>::GetAxis(uint8_t axisIndex){
+    return this->axes[axisIndex];
 }
 
 template<size_t axisCount>

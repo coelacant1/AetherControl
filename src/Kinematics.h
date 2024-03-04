@@ -1,12 +1,12 @@
 #pragma once
 
 #include "IKinematics.h"
-#include "IPathPlanner.h"
+#include "PathPlanner.h"
 
 template<size_t axisCount>
 class Kinematics : public IKinematics{
 protected:
-    IPathPlanner* pathPlanner;
+    PathPlanner<axisCount> pathPlanner;
     
     Axis* axes[axisCount];
     AxisLabel axisLabel[axisCount];
@@ -14,10 +14,10 @@ protected:
     uint8_t currentAxes = 0;
 
 public:
-    Kinematics(IPathPlanner* pathPlanner) : pathPlanner(pathPlanner){}
+    Kinematics(){}
 
     void AddAxis(Axis* axis, AxisLabel axisLabel) override;
-    Axis* GetAxis(char axisLabel) override;
+    Axis* GetAxis(uint8_t axisIndex) override;
     uint8_t GetAxisCount() override;
 
     virtual bool SetTargetPosition(float position, char axisLabel) = 0;//return if axis exists
@@ -31,18 +31,16 @@ void Kinematics<axisCount>::AddAxis(Axis* axis, AxisLabel axisLabel){
     if (currentAxes < axisCount){
         this->axes[currentAxes] = axis;
         this->axisLabel[currentAxes] = axisLabel;
+        
+        pathPlanner.AddAxis(axis);
 
         currentAxes++;
     }
 }
 
 template<size_t axisCount>
-Axis* Kinematics<axisCount>::GetAxis(char axisLabel){
-    for (uint8_t i = 0; i < currentAxes; i++){
-        if (this->axisLabel[i] == axisLabel) return axes[i];
-    }
-
-    return nullptr;
+Axis* Kinematics<axisCount>::GetAxis(uint8_t axisIndex){
+    return axes[axisIndex];
 }
 
 template<size_t axisCount>
