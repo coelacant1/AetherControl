@@ -6,38 +6,63 @@
 // Creates a GCode command object
 class SerialHandler {
 private:
-    static HardwareSerial* serial;
+    static HardwareSerial* serialHS;
+    static usb_serial_class* serialUSC;
     static long baudrate;
+    static bool serialType;
 
 public:
-    static void SetSerialInterface(HardwareSerial& serial, long baudrate);
     static void Initialize();
-    static bool CommandAvailable();
+    static bool IsReady();
+    static int CommandAvailable();
     static GCodeCommand ReadCommand();
     static void SendOK();
     static void SendNotImplemented();
+    static void SendCommandAsk();
+    static void SendCharacter(char character);
     static void SendMessage(String message);
+    static void SendMessageNLN(String message);
+    static void SendMessageTab(String message);
+    
+    static void SetSerialInterface(HardwareSerial& serial, long baudrate);
+    static void SetSerialInterface(usb_serial_class& serial, long baudrate);
     
 	template <typename T>
     static void SendMessageValue(String message, T value);
 };
 
 
-HardwareSerial* SerialHandler::serial;
+HardwareSerial* SerialHandler::serialHS;
+usb_serial_class* SerialHandler::serialUSC;
 long SerialHandler::baudrate;
+bool SerialHandler::serialType;
 
 void SerialHandler::SetSerialInterface(HardwareSerial& serial, long baudrate){
-    SerialHandler::serial = &serial;
+    SerialHandler::serialHS = &serial;
     SerialHandler::baudrate = baudrate;
+    SerialHandler::serialType = true;
+}
+
+void SerialHandler::SetSerialInterface(usb_serial_class& serial, long baudrate){
+    SerialHandler::serialUSC = &serial;
+    SerialHandler::baudrate = baudrate;
+    SerialHandler::serialType = false;
 }
 
 
 void SerialHandler::Initialize(){
-    SerialHandler::serial->begin(baudrate);
+    if(serialType) SerialHandler::serialHS->begin(baudrate);
+    else SerialHandler::serialUSC->begin(baudrate);
 }
 
-bool SerialHandler::CommandAvailable(){
-    return serial->available();
+bool SerialHandler::IsReady(){
+    if(serialType) return serialHS;
+    else return serialUSC;
+}
+
+int SerialHandler::CommandAvailable(){
+    if(serialType) return serialHS->available();
+    else return serialUSC->available();
 }
 
 GCodeCommand SerialHandler::ReadCommand(){
@@ -46,10 +71,11 @@ GCodeCommand SerialHandler::ReadCommand(){
     char incomingChar;
 
     while (true) {
-        if(serial->available() > 0){
-            incomingChar = serial->read();
+        int available = serialType ? serialHS->available() : serialUSC->available();
+        if(available > 0){
+            incomingChar = serialType ? serialHS->read() : serialUSC->read();
             
-            //serial->print(incomingChar);
+            SendCharacter(incomingChar);
             
             if (incomingChar == '\n') break;
 
@@ -109,19 +135,49 @@ GCodeCommand SerialHandler::ReadCommand(){
 }
 
 void SerialHandler::SendOK(){
-    serial->println("ok");
+    SendMessage("ok");
 }
 
 void SerialHandler::SendNotImplemented(){
-    serial->println("error");
+    SendMessage("error");
+}
+
+void SerialHandler::SendCommandAsk(){
+    SendMessageNLN("Command:");
+}
+
+void SerialHandler::SendCharacter(char character){
+    if(serialType) serialHS->print(character);
+    else serialUSC->print(character);
 }
 
 void SerialHandler::SendMessage(String message){
-    serial->println(message);
+    if(serialType) serialHS->println(message);
+    else serialUSC->println(message);
+}
+
+void SerialHandler::SendMessageNLN(String message){
+    if(serialType) serialHS->print(message);
+    else serialUSC->print(message);
+}
+
+void SerialHandler::SendMessageTab(String message){
+    if(serialType) {
+        serialHS->print(message); serialHS->print('\t');
+    }
+    else {
+        serialUSC->print(message); serialUSC->print('\t');
+    }
 }
 
 template <typename T>
 void SerialHandler::SendMessageValue(String message, T value){
-    serial->print(message); serial->print(": ");
-    serial->println(value);
+    if(serialType) {
+        serialHS->print(message); serialHS->print(':');
+        serialHS->println(value);
+    }
+    else {
+        serialUSC->print(message); serialUSC->print(':');
+        serialUSC->println(value);
+    }
 }

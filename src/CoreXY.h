@@ -36,7 +36,7 @@ private:
     bool IsMoveFinished();
 
 public:
-    CoreXY(IPathPlanner* pathPlanner, uint8_t xEndstop, uint8_t yEndstop, bool homeMaxX, bool homeMaxY, float maxX, float maxY);
+    CoreXY(uint8_t xEndstop, uint8_t yEndstop, bool homeMaxX, bool homeMaxY, float maxX, float maxY);
 
     void AddAxis(Axis* axis, IKinematics::AxisLabel axisLabel) override;
     
@@ -148,7 +148,7 @@ bool CoreXY<axisCount>::IsMoveFinished(){
 }
 
 template<size_t axisCount>
-CoreXY<axisCount>::CoreXY(IPathPlanner* pathPlanner, uint8_t xEndstop, uint8_t yEndstop, bool homeMaxX, bool homeMaxY, float maxX, float maxY) : Kinematics<axisCount>(pathPlanner), xEndstop(xEndstop), yEndstop(yEndstop), homeMaxX(homeMaxX), homeMaxY(homeMaxY), maxX(maxX), maxY(maxY) {
+CoreXY<axisCount>::CoreXY(uint8_t xEndstop, uint8_t yEndstop, bool homeMaxX, bool homeMaxY, float maxX, float maxY) : Kinematics<axisCount>(pathPlanner), xEndstop(xEndstop), yEndstop(yEndstop), homeMaxX(homeMaxX), homeMaxY(homeMaxY), maxX(maxX), maxY(maxY) {
     pinMode(xEndstop, INPUT_PULLUP);
     pinMode(yEndstop, INPUT_PULLUP);
 }
