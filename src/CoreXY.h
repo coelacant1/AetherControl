@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Kinematics.h"
-#include "..\..\lib\ProtoTracer\Utils\Time\Wait.h"
+#include "../../lib/ProtoTracer/Utils/Time/Wait.h"
 
 // use A and B as relative axes for X and Y
 template<size_t axisCount>

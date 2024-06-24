@@ -2,7 +2,7 @@
 //iterates through list
 #pragma once
 
-#include "..\ProtoTracer\Utils\Math\Mathematics.h"
+#include "../ProtoTracer/Utils/Math/Mathematics.h"
 
 #include "IPathPlanner.h"
 

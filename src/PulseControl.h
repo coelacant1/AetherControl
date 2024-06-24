@@ -6,8 +6,8 @@
 
 #include "IPulseControl.h"
 
-#include "..\ProtoTracer\Utils\Math\Mathematics.h"
-#include "..\ProtoTracer\Utils\Filter\RunningAverageFilter.h"
+#include "../ProtoTracer/Utils/Math/Mathematics.h"
+#include "../ProtoTracer/Utils/Filter/RunningAverageFilter.h"
 
 IntervalTimer pulseTimer;
 

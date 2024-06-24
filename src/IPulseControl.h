@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Arduino.h>
-#include "..\ProtoTracer\Utils\Filter\RunningAverageFilter.h"
+#include "../ProtoTracer/Utils/Filter/RunningAverageFilter.h"
 
 class IPulseControl {
 public:
