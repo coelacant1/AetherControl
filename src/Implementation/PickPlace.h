@@ -13,7 +13,7 @@ private:
     AxisConstraints axisLimitB = AxisConstraints('B', 0.0f, 1000.0f, 0.01f, 1000.0f, 50000.0f, 20000.0f, 160.0f);
 
     PulseControl<2> pulseControl = PulseControl<2>();
-    CoreXY<2> coreXY = CoreXY<2>(18, 16, true, true, 300, 400);
+    CoreXY<2> coreXY = CoreXY<2>(18, 16, true, true, 270, 415);
 
     Axis axisA = Axis(&pulseControl, &axisLimitA, 32, 31, 30);
     Axis axisB = Axis(&pulseControl, &axisLimitB, 8, 7, 6);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Kinematics.h"
+#include "..\..\lib\ProtoTracer\Utils\Time\Wait.h"
 
 // use A and B as relative axes for X and Y
 template<size_t axisCount>
@@ -15,6 +16,7 @@ private:
 
     Axis* axisA;
     Axis* axisB;
+    Wait maxHomeTime = Wait(30000);
     
     float currentX = 0.0f;
     float currentY = 0.0f;
@@ -31,7 +33,7 @@ private:
     float CalculateBPosition(float x, float y);
 
     void SetControls(float cX, float cY, float tX, float tY, float vR);
-    bool IsMoveFinished();
+    bool IsMoveFinished(float tX, float tY);
 
 public:
     CoreXY(uint8_t xEndstop, uint8_t yEndstop, bool homeMaxX, bool homeMaxY, float maxX, float maxY);
@@ -55,21 +57,23 @@ void CoreXY<axisCount>::HomeX(){
     float maxP5 = homeMaxX ? maxX + 5.0f : maxX - 5.0f;
     float maxM5 = homeMaxX ? maxX - 5.0f : maxX + 5.0f;
 
-    // Move 5mm past extreme limit
-    SetControls(min, currentY, maxP5, currentY, 1.0f / 25.0f);
-    while(!ReadEndstopX()){ this->pathPlanner.Update(); delay(5); }// Wait for endstop to trigger
-
-    // Move 5mm below endstop distance
-    SetControls(max, currentY, maxM5, currentY, 1.0f / 25.0f);
-    while(ReadEndstopX() || !IsMoveFinished()){ this->pathPlanner.Update(); delay(5); }// Wait for endstop to untrigger and to move 5mm
+    maxHomeTime.Reset();
 
     // Move 5mm past extreme limit
-    SetControls(maxM5, currentY, maxP5, currentY, 1.0f / 50.0f);
-    while(!ReadEndstopX()){ this->pathPlanner.Update(); delay(5); }// Wait for endstop to trigger, slower
+    SetControls(min, currentY, maxP5, currentY, 1.0f / 4.0f);
+    while(!ReadEndstopX() && !maxHomeTime.IsFinished()){ this->pathPlanner.Update(); delay(1); }// Wait for endstop to trigger
 
     // Move 5mm below endstop distance
-    SetControls(max, currentY, maxM5, currentY, 1.0f / 25.0f);
-    while(ReadEndstopX() || !IsMoveFinished()){ this->pathPlanner.Update(); delay(5); }// Wait for endstop to untrigger and to move 5mm
+    SetControls(max, currentY, maxM5, currentY, 1.0f / 8.0f);
+    while(!IsMoveFinished(maxM5, currentY) && !maxHomeTime.IsFinished()){ this->pathPlanner.Update(); delay(1); }// Wait for endstop to untrigger and to move 5mm
+
+    // Move 5mm past extreme limit
+    SetControls(maxM5, currentY, maxP5, currentY, 1.0f / 12.0f);
+    while(!ReadEndstopX() && !maxHomeTime.IsFinished()){ this->pathPlanner.Update(); delay(1); }// Wait for endstop to trigger, slower
+
+    // Move 5mm below endstop distance
+    SetControls(max, currentY, maxM5, currentY, 1.0f / 4.0f);
+    while(!IsMoveFinished(maxM5, currentY) && !maxHomeTime.IsFinished()){ this->pathPlanner.Update(); delay(1); }// Wait for endstop to untrigger and to move 5mm
 
     currentX = maxM5;
 }
@@ -81,21 +85,23 @@ void CoreXY<axisCount>::HomeY(){
     float maxP5 = homeMaxY ? maxY + 5.0f : maxY - 5.0f;
     float maxM5 = homeMaxY ? maxY - 5.0f : maxX + 5.0f;
 
-    // Move 5mm past extreme limit
-    SetControls(currentX, min, currentX, maxP5, 1.0f / 25.0f);
-    while(!ReadEndstopY()){ this->pathPlanner.Update(); delay(5); }// Wait for endstop to trigger
-
-    // Move 5mm below endstop distance
-    SetControls(currentX, max, currentX, maxM5, 1.0f / 25.0f);
-    while(ReadEndstopY() || !IsMoveFinished()){ this->pathPlanner.Update(); delay(5); }// Wait for endstop to untrigger and to move 5mm
+    maxHomeTime.Reset();
 
     // Move 5mm past extreme limit
-    SetControls(currentX, maxM5, currentX, maxP5, 1.0f / 50.0f);
-    while(!ReadEndstopY()){ this->pathPlanner.Update(); delay(5); }// Wait for endstop to trigger, slower
+    SetControls(currentX, min, currentX, maxP5, 1.0f / 4.0f);
+    while(!ReadEndstopY() && !maxHomeTime.IsFinished()){ this->pathPlanner.Update(); delay(1); }// Wait for endstop to trigger
 
     // Move 5mm below endstop distance
-    SetControls(currentX, max, currentX, maxM5, 1.0f / 25.0f);
-    while(ReadEndstopY() || !IsMoveFinished()){ this->pathPlanner.Update(); delay(5); }// Wait for endstop to untrigger and to move 5mm
+    SetControls(currentX, max, currentX, maxM5, 1.0f / 8.0f);
+    while(!IsMoveFinished(currentX, maxM5) && !maxHomeTime.IsFinished()){ this->pathPlanner.Update(); delay(1); }// Wait for endstop to untrigger and to move 5mm
+
+    // Move 5mm past extreme limit
+    SetControls(currentX, maxM5, currentX, maxP5, 1.0f / 12.0f);
+    while(!ReadEndstopY() && !maxHomeTime.IsFinished()){ this->pathPlanner.Update(); delay(1); }// Wait for endstop to trigger, slower
+
+    // Move 5mm below endstop distance
+    SetControls(currentX, max, currentX, maxM5, 1.0f / 4.0f);
+    while(!IsMoveFinished(currentX, maxM5) && !maxHomeTime.IsFinished()){ this->pathPlanner.Update(); delay(1); }// Wait for endstop to untrigger and to move 5mm
     
     currentY = maxM5;
 }
@@ -127,16 +133,13 @@ void CoreXY<axisCount>::SetControls(float cX, float cY, float tX, float tY, floa
 
     axisA->SetTargetPosition(CalculateAPosition(tX, tY));
     axisB->SetTargetPosition(CalculateBPosition(tX, tY));
-
-    axisA->SetTargetVelocity(axisA->GetAxisConstraints()->GetMaxVelocity() * vR);
-    axisB->SetTargetVelocity(axisB->GetAxisConstraints()->GetMaxVelocity() * vR);
     
-    this->pathPlanner.CalculateLimits(25.0f);
+    this->pathPlanner.CalculateLimits(100.0f * vR);
 }
 
 template<size_t axisCount>
-bool CoreXY<axisCount>::IsMoveFinished(){
-    return Mathematics::IsClose(axisA->GetCurrentPosition(), axisA->GetTargetPosition(), 0.01f) || Mathematics::IsClose(axisB->GetCurrentPosition(), axisB->GetTargetPosition(), 0.01f);
+bool CoreXY<axisCount>::IsMoveFinished(float tX, float tY){
+    return Mathematics::IsClose(axisA->GetCurrentPosition(), CalculateAPosition(tX, tY), 0.01f) && Mathematics::IsClose(axisB->GetCurrentPosition(), CalculateBPosition(tX, tY), 0.01f);
 }
 
 template<size_t axisCount>
@@ -198,6 +201,9 @@ template<size_t axisCount>
 void CoreXY<axisCount>::HomeAxes(){
     axisA->ResetRelative();
     axisB->ResetRelative();
+
+    axisA->Enable();
+    axisB->Enable();
 
     HomeX();
     HomeY();
