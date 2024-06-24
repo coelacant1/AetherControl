@@ -1,9 +1,6 @@
-//#include "Implementation/PickPlace.h"
-//#include "Implementation/PickPlaceHead.h"
-#include "Implementation/StewartPlatform.h"
+#include "Implementation/PickPlace.h"
 
-//PickPlace pickPlace = PickPlace();
-Implementation* control = new StewartPlatform();
+Implementation* control = new PickPlace();
 
 void setup() {
     control->SetSerialInterface(&Serial, 115200);

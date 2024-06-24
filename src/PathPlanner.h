@@ -130,7 +130,7 @@ bool PathPlanner<axisCount>::Update(){
         axes[i]->SetTargetPosition(targetPosition);
     }
 
-    if(newCommand) newCommand = false;
+    newCommand = false;
 
     return !Mathematics::IsClose(ratio, 1.0f, 0.001f);
 }

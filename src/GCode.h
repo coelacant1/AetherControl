@@ -76,8 +76,23 @@ void GCode::G0(GCodeCommand* gc){
             continue;
         }
         else{
-            for (int j = 0; j < kinematics->GetAxisCount(); j++){
-                kinematics->SetTargetPosition(gc->values[i], gc->characters[i]);
+            switch (gc->characters[i]) {
+                case IKinematics::A:
+                case IKinematics::B:
+                case IKinematics::E:
+                case IKinematics::I:
+                case IKinematics::J:
+                case IKinematics::K:
+                case IKinematics::U:
+                case IKinematics::V:
+                case IKinematics::W:
+                case IKinematics::X:
+                case IKinematics::Y:
+                case IKinematics::Z:
+                    kinematics->SetTargetPosition(gc->values[i], gc->characters[i]);
+                    break;
+                default:
+                    break;
             }
         }
     }
@@ -160,12 +175,16 @@ void GCode::M42(GCodeCommand* gc){
         case 1: pinMode(pin, OUTPUT); break;
         case 2: pinMode(pin, INPUT_PULLUP); break;
         case 3: pinMode(pin, INPUT_PULLDOWN); break;
+        case 4: pinMode(pin, INPUT); break;//repeat for digital
         default: SerialHandler::SendMessageValue("State", state); break;
     }
 
     if (state == 1) analogWrite(pin, pwmValue);
     else if (state == 0 || state == 2 || state == 3) {
         SerialHandler::SendMessageValue("Pin " + String(pin), analogRead(pin));
+    }
+    else if (state == 4) {
+        SerialHandler::SendMessageValue("Pin " + String(pin), digitalRead(pin));
     }
 }
 

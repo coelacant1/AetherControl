@@ -22,6 +22,7 @@ private:
     bool isRelative = false;
     bool isEnabled = false;
     bool newCommand = true;
+    bool invertDirection = false;
 
     float controlPosition = 0.0f;
     float previousTargetPosition = 0.0f;
@@ -174,11 +175,13 @@ void Axis::AutoHome(){// Cartesian only
 }
 
 void Axis::InvertDirection(bool invert){
-    pulseControl->SetDirection(instanceNumber, invert);
+    invertDirection = invert;
+
+    pulseControl->InvertDirection(instanceNumber, invert);
 }
 
 void Axis::Enable(){
-    digitalWriteFast(enablePin, LOW);
+    digitalWrite(enablePin, LOW);
     isEnabled = true;
 }
 
@@ -196,7 +199,7 @@ AxisConstraints* Axis::GetAxisConstraints(){
 }
 
 void Axis::Disable(){
-    digitalWriteFast(enablePin, HIGH);
+    digitalWrite(enablePin, HIGH);
     isEnabled = false;
 }
 

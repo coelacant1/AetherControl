@@ -2,8 +2,10 @@ import serial
 import time
 import os
 
+filename = "CoreXYPickPlaceTest.txt"
+
 # Function to initialize the serial connection
-def init_serial_connection(port='COM9', baud_rate=38400):
+def init_serial_connection(port='COM17', baud_rate=115200):
     try:
         ser = serial.Serial(port, baud_rate, timeout=1, bytesize=8, parity='N', stopbits=1)
         if ser.isOpen():
@@ -64,11 +66,14 @@ def load_gcode_commands(filename):
 
 # Modified main function to control the CNC machine using commands from a file
 def main():
+    global filename
     # Path to the G-code commands file
-    filename = os.path.join(os.path.dirname(__file__), 'gcode_commands.txt')
+    filename = os.path.join(os.path.dirname(__file__), filename)
     
     # Initialize serial connection
     ser = init_serial_connection()
+
+    time.sleep(0.5)
 
     # Load G-code commands from the file
     commands = load_gcode_commands(filename)

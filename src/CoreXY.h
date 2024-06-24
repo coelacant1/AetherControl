@@ -16,12 +16,10 @@ private:
     Axis* axisA;
     Axis* axisB;
     
-    float currentX;
-    float currentY;
-    float targetX;
-    float targetY;
-
-    void SetABTarget();
+    float currentX = 0.0f;
+    float currentY = 0.0f;
+    float targetX = 0.0f;
+    float targetY = 0.0f;
 
     void HomeX();
     void HomeY();
@@ -51,12 +49,6 @@ public:
 };
 
 template<size_t axisCount>
-void CoreXY<axisCount>::SetABTarget(){
-    axisA->SetTargetPosition(CalculateAPosition(targetX, targetY));
-    axisB->SetTargetPosition(CalculateBPosition(targetX, targetY));
-}
-
-template<size_t axisCount>
 void CoreXY<axisCount>::HomeX(){
     float min = homeMaxX ? 0.0f : maxX;
     float max = homeMaxX ? maxX : 0.0f;
@@ -65,19 +57,19 @@ void CoreXY<axisCount>::HomeX(){
 
     // Move 5mm past extreme limit
     SetControls(min, currentY, maxP5, currentY, 1.0f / 25.0f);
-    while(!ReadEndstopX()){ this->pathPlanner->Update(); delay(5); }// Wait for endstop to trigger
+    while(!ReadEndstopX()){ this->pathPlanner.Update(); delay(5); }// Wait for endstop to trigger
 
     // Move 5mm below endstop distance
     SetControls(max, currentY, maxM5, currentY, 1.0f / 25.0f);
-    while(ReadEndstopX() || !IsMoveFinished()){ this->pathPlanner->Update(); delay(5); }// Wait for endstop to untrigger and to move 5mm
+    while(ReadEndstopX() || !IsMoveFinished()){ this->pathPlanner.Update(); delay(5); }// Wait for endstop to untrigger and to move 5mm
 
     // Move 5mm past extreme limit
     SetControls(maxM5, currentY, maxP5, currentY, 1.0f / 50.0f);
-    while(!ReadEndstopX()){ this->pathPlanner->Update(); delay(5); }// Wait for endstop to trigger, slower
+    while(!ReadEndstopX()){ this->pathPlanner.Update(); delay(5); }// Wait for endstop to trigger, slower
 
     // Move 5mm below endstop distance
     SetControls(max, currentY, maxM5, currentY, 1.0f / 25.0f);
-    while(ReadEndstopX() || !IsMoveFinished()){ this->pathPlanner->Update(); delay(5); }// Wait for endstop to untrigger and to move 5mm
+    while(ReadEndstopX() || !IsMoveFinished()){ this->pathPlanner.Update(); delay(5); }// Wait for endstop to untrigger and to move 5mm
 
     currentX = maxM5;
 }
@@ -91,19 +83,19 @@ void CoreXY<axisCount>::HomeY(){
 
     // Move 5mm past extreme limit
     SetControls(currentX, min, currentX, maxP5, 1.0f / 25.0f);
-    while(!ReadEndstopY()){ this->pathPlanner->Update(); delay(5); }// Wait for endstop to trigger
+    while(!ReadEndstopY()){ this->pathPlanner.Update(); delay(5); }// Wait for endstop to trigger
 
     // Move 5mm below endstop distance
     SetControls(currentX, max, currentX, maxM5, 1.0f / 25.0f);
-    while(ReadEndstopY() || !IsMoveFinished()){ this->pathPlanner->Update(); delay(5); }// Wait for endstop to untrigger and to move 5mm
+    while(ReadEndstopY() || !IsMoveFinished()){ this->pathPlanner.Update(); delay(5); }// Wait for endstop to untrigger and to move 5mm
 
     // Move 5mm past extreme limit
     SetControls(currentX, maxM5, currentX, maxP5, 1.0f / 50.0f);
-    while(!ReadEndstopY()){ this->pathPlanner->Update(); delay(5); }// Wait for endstop to trigger, slower
+    while(!ReadEndstopY()){ this->pathPlanner.Update(); delay(5); }// Wait for endstop to trigger, slower
 
     // Move 5mm below endstop distance
     SetControls(currentX, max, currentX, maxM5, 1.0f / 25.0f);
-    while(ReadEndstopY() || !IsMoveFinished()){ this->pathPlanner->Update(); delay(5); }// Wait for endstop to untrigger and to move 5mm
+    while(ReadEndstopY() || !IsMoveFinished()){ this->pathPlanner.Update(); delay(5); }// Wait for endstop to untrigger and to move 5mm
     
     currentY = maxM5;
 }
@@ -139,7 +131,7 @@ void CoreXY<axisCount>::SetControls(float cX, float cY, float tX, float tY, floa
     axisA->SetTargetVelocity(axisA->GetAxisConstraints()->GetMaxVelocity() * vR);
     axisB->SetTargetVelocity(axisB->GetAxisConstraints()->GetMaxVelocity() * vR);
     
-    this->pathPlanner->CalculateLimits(25.0f);
+    this->pathPlanner.CalculateLimits(25.0f);
 }
 
 template<size_t axisCount>
@@ -148,29 +140,22 @@ bool CoreXY<axisCount>::IsMoveFinished(){
 }
 
 template<size_t axisCount>
-CoreXY<axisCount>::CoreXY(uint8_t xEndstop, uint8_t yEndstop, bool homeMaxX, bool homeMaxY, float maxX, float maxY) : Kinematics<axisCount>(pathPlanner), xEndstop(xEndstop), yEndstop(yEndstop), homeMaxX(homeMaxX), homeMaxY(homeMaxY), maxX(maxX), maxY(maxY) {
-    pinMode(xEndstop, INPUT_PULLUP);
-    pinMode(yEndstop, INPUT_PULLUP);
+CoreXY<axisCount>::CoreXY(uint8_t xEndstop, uint8_t yEndstop, bool homeMaxX, bool homeMaxY, float maxX, float maxY) : xEndstop(xEndstop), yEndstop(yEndstop), homeMaxX(homeMaxX), homeMaxY(homeMaxY), maxX(maxX), maxY(maxY) {
+    pinMode(xEndstop, INPUT);
+    pinMode(yEndstop, INPUT);
 }
 
 template<size_t axisCount>
 void CoreXY<axisCount>::AddAxis(Axis* axis, IKinematics::AxisLabel axisLabel){
-    if (axisLabel == 'A') {
-        axisA = axis;
-        this->pathPlanner->AddAxis(axisA);
-    }
-    else if (axisLabel == 'B') {
-        axisB = axis;
-        this->pathPlanner->AddAxis(axisB);
-    }
-    else if (this->currentAxes < axisCount){
-        this->axes[this->currentAxes] = axis;
-        this->axisLabel[this->currentAxes] = axisLabel;
-        
-        this->pathPlanner->AddAxis(axis);
+    if (axisLabel == 'A') axisA = axis;
+    else if (axisLabel == 'B') axisB = axis;
+    
+    this->axes[this->currentAxes] = axis;
+    this->axisLabel[this->currentAxes] = axisLabel;
+    
+    this->pathPlanner.AddAxis(axis);
 
-        this->currentAxes++;
-    }
+    this->currentAxes++;
 }
 
 template<size_t axisCount>
@@ -180,35 +165,33 @@ Axis* CoreXY<axisCount>::GetAxis(uint8_t axisIndex){
 
 template<size_t axisCount>
 bool CoreXY<axisCount>::SetTargetPosition(float position, char axisLabel){
-    for (uint8_t i = 0; i < this->currentAxes; i++){
-        if (axisLabel == 'X') {
-            targetX = position;
-            return true;
-        }
-        else if (axisLabel == 'Y') {
-            targetY = position;
-            return true;
-        }
-        else if (this->axisLabel[i] == axisLabel) {
-            this->axisTarget[i] = position;
-            return true;
+    if (axisLabel == IKinematics::X) targetX = position;
+    else if (axisLabel == IKinematics::Y) targetY = position;
+    else if (axisLabel == IKinematics::A || axisLabel == IKinematics::B) return false;
+    else{
+        for (uint8_t i = 0; i < this->currentAxes; i++){
+            if (this->axisLabel[i] == axisLabel) {
+                this->axisTarget[i] = position;
+                return true;
+            }
         }
     }
-
+    
     return false;
 }
 
 template<size_t axisCount>
 void CoreXY<axisCount>::StartMove(float feedrate){
-    SetABTarget();
+    axisA->SetTargetPosition(CalculateAPosition(targetX, targetY));
+    axisB->SetTargetPosition(CalculateBPosition(targetX, targetY));
 
     for (uint8_t i = 0; i < this->currentAxes; i++){// Set all at the same time
-        this->axes[i]->SetTargetPosition(this->axisTarget[i]);
+        if (this->axisLabel[i] != IKinematics::A && this->axisLabel[i] != IKinematics::B) this->axes[i]->SetTargetPosition(this->axisTarget[i]);
     }
-    
-    this->pathPlanner->CalculateLimits(feedrate);
 
-    while (this->pathPlanner->Update()) delay(10);
+    this->pathPlanner.CalculateLimits(feedrate);
+
+    while (this->pathPlanner.Update()) { delay(1); }
 }
 
 template<size_t axisCount>

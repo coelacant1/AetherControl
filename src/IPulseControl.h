@@ -12,6 +12,7 @@ public:
     virtual void SetConstraints(uint8_t instanceNumber, long minimumPositionSteps, long maximumPositionSteps) = 0;
     virtual void SetTargetPosition(uint8_t instanceNumber, long targetPosition) = 0;
     virtual void SetFrequency(uint8_t instanceNumber, long microseconds) = 0;
+    virtual void InvertDirection(uint8_t instanceNumber, bool invert) = 0;
 
     virtual void AutoStepControl() = 0;
 

@@ -173,11 +173,11 @@ void SerialHandler::SendMessageTab(String message){
 template <typename T>
 void SerialHandler::SendMessageValue(String message, T value){
     if(serialType) {
-        serialHS->print(message); serialHS->print(':');
+        serialHS->print(message); serialHS->print(": ");
         serialHS->println(value);
     }
     else {
-        serialUSC->print(message); serialUSC->print(':');
+        serialUSC->print(message); serialUSC->print(": ");
         serialUSC->println(value);
     }
 }
