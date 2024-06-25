@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../lib/ProtoTracer/src/Utils/Math/Mathematics.h"
+#include "../lib/ProtoTracer/Utils/Math/Mathematics.h"
 
 struct AxisConstraints {
 private:
