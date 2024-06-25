@@ -2,8 +2,8 @@
 
 #include <Arduino.h>
 
-#include "GCode.h"
-#include "SerialHandler.h"
+#include "../GCode/GCode.h"
+#include "../Serial/SerialHandler.h"
 
 class Implementation {
 protected:
@@ -22,27 +22,3 @@ public:
     void ExecuteCommand();
 
 };
-
-void Implementation::SetSerialInterface(HardwareSerial* serial, long baudrate){
-    SerialHandler::SetSerialInterface(Serial, 38400);
-    SerialHandler::Initialize();
-}
-
-void Implementation::SetSerialInterface(usb_serial_class* serial, long baudrate){
-    SerialHandler::SetSerialInterface(Serial, 38400);
-    SerialHandler::Initialize();
-}
-
-bool Implementation::IsCommandAvailable(){
-    return SerialHandler::CommandAvailable();
-}
-
-void Implementation::ExecuteCommand(){
-    GCodeCommand cmd = SerialHandler::ReadCommand();
-
-    gCode.ExecuteGCode(&cmd);
-
-    SerialHandler::SendOK();
-
-    SerialHandler::SendCommandAsk();
-}

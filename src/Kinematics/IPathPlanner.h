@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Axis.h"
+#include "../Axis/Axis.h"
 
 class IPathPlanner {
 public:
