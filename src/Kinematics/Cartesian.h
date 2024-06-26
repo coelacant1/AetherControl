@@ -12,6 +12,13 @@ public:
     void StartMove(float feedrate) override;
 
     void HomeAxes() override;
+
+    float GetAxisPosition(char axisLabel) override;
+
+    float GetEffectorPosition(char axisLabel) override;
+
+    char GetEffectorAxisLabel(uint8_t axisIndex) override;
+    
 };
 
 #include "Cartesian.tpp"

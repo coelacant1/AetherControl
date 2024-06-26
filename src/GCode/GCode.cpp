@@ -16,7 +16,11 @@ void GCode::ExecuteGCode(GCodeCommand* gc){
             case   0: G0(gc);  break;
             case   1: G1(gc);  break;
             case   4: G4(gc);  break;
+            case  21: G1(gc);  break;
             case  28: G28(gc); break;
+            case  90: G90(gc); break;
+            case  91: G91(gc); break;
+            case  92: G92(gc); break;
             default: SerialHandler::SendNotImplemented(); break;
         }
     }
@@ -25,7 +29,11 @@ void GCode::ExecuteGCode(GCodeCommand* gc){
             case  17: M17(gc);  break;
             case  18: M18(gc);  break;
             case  42: M42(gc);  break;
+            case 114: M114(gc); break;
+            case 115: M115(gc); break;
             case 150: M150(gc); break;
+            case 204: M204(gc); break;
+            case 400: M400(gc); break;
             default: SerialHandler::SendNotImplemented(); break;
         }
     }
@@ -56,9 +64,12 @@ void GCode::G0(GCodeCommand* gc){
                 case IKinematics::W:
                 case IKinematics::X:
                 case IKinematics::Y:
-                case IKinematics::Z:
-                    kinematics->SetTargetPosition(gc->values[i], gc->characters[i]);
+                case IKinematics::Z: {
+                    float target = GlobalVariables::relativeMode ? gc->values[i] + kinematics->GetEffectorPosition(gc->characters[i]) : gc->values[i];
+
+                    kinematics->SetTargetPosition(target, gc->characters[i]);
                     break;
+                }
                 default:
                     break;
             }
@@ -85,10 +96,26 @@ void GCode::G4(GCodeCommand* gc){
     }
 }
 
+// Set Millimeter mode
+void GCode::G21(GCodeCommand* gc){}
+
 // Home all non-relative axes
 void GCode::G28(GCodeCommand* gc){
     kinematics->HomeAxes();
 }
+
+// Absolute positioning mode
+void GCode::G90(GCodeCommand* gc){
+    GlobalVariables::relativeMode = false;
+}
+
+// Relative positioning mode
+void GCode::G91(GCodeCommand* gc){
+    GlobalVariables::relativeMode = true;
+}
+
+// Set global offsets
+void GCode::G92(GCodeCommand* gc){}
 
 // Enable steppers
 void GCode::M17(GCodeCommand* gc){
@@ -156,6 +183,22 @@ void GCode::M42(GCodeCommand* gc){
     }
 }
 
+// Get Position
+void GCode::M114(GCodeCommand* gc){
+    for (int i = 0; i < kinematics->GetAxisCount(); i++){
+        SerialHandler::SendMessageValueSpace(kinematics->GetEffectorPosition(i));
+    }
+
+    SerialHandler::SendMessage("");
+}
+
+// Detect Firmware
+void GCode::M115(GCodeCommand* gc){
+    SerialHandler::SendMessageSpace("FIRMWARE_NAME:AetherControl");
+    SerialHandler::SendMessageSpace(GlobalVariables::firmwareVersion);
+    SerialHandler::SendMessage("SOURCE_CODE_URL:https://github.com/coelacant1/AetherControl");
+}
+
 // Set LED color
 void GCode::M150(GCodeCommand* gc){
     uint8_t R = 0, G = 0, B = 0;
@@ -170,3 +213,13 @@ void GCode::M150(GCodeCommand* gc){
 
     leds->Update();
 }
+
+// Set Acceleration
+void GCode::M204(GCodeCommand* gc){    
+    for (int i = 0; i < gc->parametersUsed; i++){
+        if (gc->characters[i] == 'T' || gc->characters[i] == 'P' || gc->characters[i] == 'S') kinematics->GetAxis(i)->GetAxisConstraints()->SetAcceleration(gc->values[i]);
+    }
+}
+
+// Wait for move completion, nothing required, synchronous control only
+void GCode::M400(GCodeCommand* gc){}

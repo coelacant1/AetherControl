@@ -138,3 +138,12 @@ void SerialHandler::SendMessageTab(String message){
     }
 }
 
+void SerialHandler::SendMessageSpace(String message){
+    if(serialType) {
+        serialHS->print(message); serialHS->print(' ');
+    }
+    else {
+        serialUSC->print(message); serialUSC->print(' ');
+    }
+}
+

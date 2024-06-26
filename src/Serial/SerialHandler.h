@@ -23,12 +23,19 @@ public:
     static void SendMessage(String message);
     static void SendMessageNLN(String message);
     static void SendMessageTab(String message);
+    static void SendMessageSpace(String message);
     
     static void SetSerialInterface(HardwareSerial& serial, long baudrate);
     static void SetSerialInterface(usb_serial_class& serial, long baudrate);
     
 	template <typename T>
     static void SendMessageValue(String message, T value);
+    
+	template <typename T>
+    static void SendMessageValueSpace(String message, T value);
+    
+	template <typename T>
+    static void SendMessageValues(String message, uint8_t count, T* value);
 };
 
 #include "SerialHandler.tpp"

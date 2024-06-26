@@ -162,3 +162,35 @@ void CoreXY<axisCount>::HomeAxes(){
         if (this->axisLabel[i] != 'A' && this->axisLabel[i] != 'B') this->axes[i]->AutoHome();
     }
 }
+
+template<size_t axisCount>
+float CoreXY<axisCount>::GetAxisPosition(char axisLabel){
+    for (uint8_t i = 0; i < this->currentAxes; i++){
+        if (this->axisLabel[i] == axisLabel) {
+            return this->axes[i]->GetCurrentPosition();
+        }
+    }
+
+    return 0.0f;
+}
+
+template<size_t axisCount>
+float CoreXY<axisCount>::GetEffectorPosition(char axisLabel){
+    if (axisLabel == IKinematics::X) return currentX;
+    else if (axisLabel == IKinematics::Y) return currentY;
+    else if (axisLabel == IKinematics::A || axisLabel == IKinematics::B) return 0.0f;
+    else{
+        for (uint8_t i = 0; i < this->currentAxes; i++){
+            if (this->axisLabel[i] == axisLabel) {
+                return this->axes[i]->GetCurrentPosition();
+            }
+        }
+    }
+
+    return 0.0f;
+}
+
+template<size_t axisCount>
+char CoreXY<axisCount>::GetEffectorAxisLabel(uint8_t axisIndex){
+    
+}

@@ -33,3 +33,19 @@ void Cartesian<axisCount>::HomeAxes(){
         else this->axes[i]->AutoHome();
     }
 }
+
+template<size_t axisCount>
+float Cartesian<axisCount>::GetAxisPosition(char axisLabel){
+    return GetEffectorPosition(axisLabel);
+}
+
+template<size_t axisCount>
+float Cartesian<axisCount>::GetEffectorPosition(char axisLabel){
+    for (uint8_t i = 0; i < this->currentAxes; i++){
+        if (this->axisLabel[i] == axisLabel) {
+            return this->axes[i]->GetCurrentPosition();
+        }
+    }
+
+    return 0.0f;
+}
