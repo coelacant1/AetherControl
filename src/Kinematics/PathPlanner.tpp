@@ -13,7 +13,7 @@ void PathPlanner<axisCount>::AddAxis(Axis* axis){
 }
 
 template<size_t axisCount>
-Axis* PathPlanner<axisCount>::GetAxis(int axisIndex){
+Axis* PathPlanner<axisCount>::GetAxis(uint8_t axisIndex){
     return this->axes[axisIndex];
 }
 
@@ -46,10 +46,10 @@ void PathPlanner<axisCount>::CalculateLimits(float feedrate){
     }
 
     distance = Mathematics::Sqrt(distance);// Euclidian distance
-    
+
     targetVelocity = feedrate / distance;// Normalize target feedrate to scale of 0.0 to 1.0
     acceleration = acceleration / distance;// Normalize acceleration to scale of 0.0 to 1.0
-    
+
     ratio = 0.0f;
     newCommand = true;
 
@@ -78,26 +78,32 @@ bool PathPlanner<axisCount>::Update(){
         }
     }
 
-    if (remainingDistance < 0.001f) velocity = 0;
+    ratio = Mathematics::Constrain(ratio + velocity * dT, 0.001f, 1.0f);
 
-    ratio = Mathematics::Constrain(ratio + velocity * dT, 0.0f, 1.0f);
+    bool axesFinished = Mathematics::IsClose(ratio, 1.0f, 0.001f);
 
     for (int i = 0; i < currentAxes; i++){
         // Last steps per second from previous window
-        float targetPosition = Mathematics::Map(ratio, 0.0f, 1.0f, startPosition[i], endPosition[i]);
+        float targetPosition = Mathematics::Map(ratio, 0.0f, 1.0f, startPosition[i], endPosition[i]);// Starting position must always be slightly greater than current position
+
+        if (Mathematics::IsClose(ratio, 1.0f, 0.001f)) targetPosition = endPosition[i];// Finalize end target at slowest velocity for last move update
 
         if(newCommand){// Prevents initial impulse from rapid change in velocity estimation
             axes[i]->SetTargetPosition(targetPosition);
             axes[i]->SetTargetPosition(targetPosition);
         }
 
-        float velocity = fabsf(targetPosition - axes[i]->GetPreviousTargetPosition()) / (dT * 2.0f);
+        float velocity = fabsf(targetPosition - axes[i]->GetPreviousTargetPosition()) / (dT * 2.0f);//
+
+        velocity = Mathematics::Constrain(velocity, axes[i]->GetAxisConstraints()->GetMinVelocity(), axes[i]->GetAxisConstraints()->GetMaxVelocity());
         
         axes[i]->SetCurrentVelocity(velocity);
         axes[i]->SetTargetPosition(targetPosition);
+
+        axesFinished = axesFinished && axes[i]->GetAbsoluteCurrentPosition() == axes[i]->GetAbsoluteTargetPosition();
     }
 
     newCommand = false;
 
-    return !Mathematics::IsClose(ratio, 1.0f, 0.001f);
+    return !axesFinished;
 }

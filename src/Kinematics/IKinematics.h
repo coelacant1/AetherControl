@@ -16,7 +16,8 @@ public:
         W = 'W',
         X = 'X',
         Y = 'Y',
-        Z = 'Z'
+        Z = 'Z',
+        NA = 'N'
     };
     
     virtual void AddAxis(Axis* axis, AxisLabel axisLabel) = 0;

@@ -6,14 +6,10 @@ Axis::Axis(IPulseControl* pulseControl, AxisConstraints* axisConstraints, uint8_
     isRelative = true;
 
     instanceNumber = instanceCount++;
-    
-    pulseControl->SetConstraints(instanceNumber, axisConstraints->GetMinPosition() * axisConstraints->GetStepsPerMillimeter(), axisConstraints->GetMaxPosition() * axisConstraints->GetStepsPerMillimeter());
 }
 
 Axis::Axis(IPulseControl* pulseControl, AxisConstraints* axisConstraints, uint8_t stepPin, uint8_t dirPin, uint8_t enablePin, uint8_t endstopPin) : pulseControl(pulseControl), axisConstraints(axisConstraints), stepPin(stepPin), dirPin(dirPin), enablePin(enablePin), endstopPin(endstopPin) {
     instanceNumber = instanceCount++;
-    
-    pulseControl->SetConstraints(instanceNumber, axisConstraints->GetMinPosition() * axisConstraints->GetStepsPerMillimeter(), axisConstraints->GetMaxPosition() * axisConstraints->GetStepsPerMillimeter());
 }
 
 void Axis::Initialize(){
@@ -47,7 +43,6 @@ void Axis::AutoHome(){// Cartesian only
         float min, max;
         
         // Temporarily assumes axis is relative to determine new homing location
-        pulseControl->DisableConstraints(instanceNumber);
         isHoming = true;
 
         if (homeMax){
@@ -60,8 +55,8 @@ void Axis::AutoHome(){// Cartesian only
         }
 
         SetCurrentPosition(min);
-        SetTargetPosition(homeMax ? max + 5.0f : max - 5.0f);// Move 5mm past extreme limit
-        SetTargetVelocity(axisConstraints->GetMaxVelocity() / 25.0f);
+        SetTargetPosition(homeMax ? max + GlobalVariables::homingDistanceOffset : max - GlobalVariables::homingDistanceOffset);// Move 5mm past extreme limit
+        SetTargetVelocity(GlobalVariables::homingSpeedPrimary);
 
         while(!ReadEndstop()){
             Update();
@@ -69,16 +64,16 @@ void Axis::AutoHome(){// Cartesian only
         }
         
         SetCurrentPosition(max);
-        SetTargetPosition(homeMax ? max - 5.0f : max + 5.0f);// Move 5mm below endstop distance
-        SetTargetVelocity(axisConstraints->GetMaxVelocity() / 25.0f);
+        SetTargetPosition(homeMax ? max - GlobalVariables::homingDistanceBackoff : max + GlobalVariables::homingDistanceBackoff);// Move 5mm below endstop distance
+        SetTargetVelocity(GlobalVariables::homingSpeedSecondary);
 
         while(ReadEndstop() || !Mathematics::IsClose(GetCurrentPosition(), GetTargetPosition(), 0.01f)){
             Update();
             delay(5);
         }
 
-        SetTargetPosition(homeMax ? max + 5.0f : max - 5.0f);// Move 5mm past extreme limit
-        SetTargetVelocity(axisConstraints->GetMaxVelocity() / 50.0f);
+        SetTargetPosition(homeMax ? max + GlobalVariables::homingDistanceBackoff : max - GlobalVariables::homingDistanceBackoff);// Move 5mm past extreme limit
+        SetTargetVelocity(GlobalVariables::homingSpeedSecondary);
 
         while(!ReadEndstop()){
             Update();
@@ -86,7 +81,8 @@ void Axis::AutoHome(){// Cartesian only
         }
         
         SetCurrentPosition(max);
-        SetTargetPosition(homeMax ? max - 5.0f : max + 5.0f);// Move 5mm below endstop distance
+        SetTargetPosition(homeMax ? max - GlobalVariables::homingDistanceBackoff : max + GlobalVariables::homingDistanceBackoff);// Move 5mm below endstop distance
+        SetTargetVelocity(GlobalVariables::homingSpeedSecondary);
 
 
         while(ReadEndstop() || !Mathematics::IsClose(GetCurrentPosition(), GetTargetPosition(), 0.01f)){
@@ -95,7 +91,6 @@ void Axis::AutoHome(){// Cartesian only
         }
 
         // Sets axis back to absolute positioning
-        pulseControl->EnableConstraints(instanceNumber);
         isHoming = false;
     }
     else{
@@ -184,11 +179,20 @@ void Axis::SetTargetPosition(float targetPosition){
     
     newCommand = true;
 
-    pulseControl->SetTargetPosition(instanceNumber, this->targetPosition * axisConstraints->GetStepsPerMillimeter());
+    pulseControl->SetTargetPosition(instanceNumber, long(this->targetPosition * axisConstraints->GetStepsPerMillimeter()));
 }
 
 void Axis::SetTargetVelocity(float targetVelocity){
     this->targetVelocity = Mathematics::Constrain(targetVelocity, axisConstraints->GetMinVelocity(), axisConstraints->GetMaxVelocity());
+}
+
+
+long Axis::GetAbsoluteCurrentPosition(){
+    return pulseControl->GetCurrentPosition(instanceNumber);
+}
+
+long Axis::GetAbsoluteTargetPosition(){
+    return pulseControl->GetTargetPosition(instanceNumber);
 }
 
 void Axis::Update(){

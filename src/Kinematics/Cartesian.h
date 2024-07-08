@@ -2,7 +2,7 @@
 
 #include "Kinematics.h"
 
-template<size_t axisCount>
+template<uint8_t axisCount>
 class Cartesian : public Kinematics<axisCount>{
 public:
     Cartesian();

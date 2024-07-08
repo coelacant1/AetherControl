@@ -2,10 +2,10 @@ import serial
 import time
 import os
 
-filename = "CoreXYPickPlaceTest.txt"
+filename = "CoreXYTest3.txt"
 
 # Function to initialize the serial connection
-def init_serial_connection(port='COM17', baud_rate=115200):
+def init_serial_connection(port='/dev/ttyACM0', baud_rate=115200):
     try:
         ser = serial.Serial(port, baud_rate, timeout=1, bytesize=8, parity='N', stopbits=1)
         if ser.isOpen():

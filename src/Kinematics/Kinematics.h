@@ -3,7 +3,7 @@
 #include "IKinematics.h"
 #include "PathPlanner.h"
 
-template<size_t axisCount>
+template<uint8_t axisCount>
 class Kinematics : public IKinematics{
 protected:
     PathPlanner<axisCount> pathPlanner;

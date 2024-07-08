@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include "../GCode/GCodeCommand.h"
+#include "../GlobalVariables.h"
 
 // Creates a GCode command object
 class SerialHandler {

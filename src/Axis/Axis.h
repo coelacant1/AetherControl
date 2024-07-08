@@ -69,6 +69,9 @@ public:
     void SetTargetPosition(float targetPosition);// Returns constrained output
     void SetTargetVelocity(float targetVelocity);// Returns constrained output
 
+    long GetAbsoluteCurrentPosition();
+    long GetAbsoluteTargetPosition();
+
     void Update();//Updates the current axis to follow the command set
 
 };

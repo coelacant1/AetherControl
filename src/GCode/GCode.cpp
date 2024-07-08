@@ -16,7 +16,7 @@ void GCode::ExecuteGCode(GCodeCommand* gc){
             case   0: G0(gc);  break;
             case   1: G1(gc);  break;
             case   4: G4(gc);  break;
-            case  21: G1(gc);  break;
+            case  21: G21(gc); break;
             case  28: G28(gc); break;
             case  90: G90(gc); break;
             case  91: G91(gc); break;
@@ -44,11 +44,13 @@ void GCode::ExecuteGCode(GCodeCommand* gc){
 
 // Rapid move
 void GCode::G0(GCodeCommand* gc){
+    if (gc->parametersUsed == 0) return;
+
     float feedrate = 10.0f;
 
     for (int i = 0; i < gc->parametersUsed; i++){
         if (gc->characters[i] == 'F'){
-            feedrate = gc->values[i];
+            feedrate = gc->values[i] / 60.0f;//input at mm/min convert to mm/s
             continue;
         }
         else{
@@ -102,6 +104,13 @@ void GCode::G21(GCodeCommand* gc){}
 // Home all non-relative axes
 void GCode::G28(GCodeCommand* gc){
     kinematics->HomeAxes();
+    
+    // Initialize default target position to current position
+    for (uint8_t i = 0; i < kinematics->GetAxisCount(); i++){
+        char axisLabel = kinematics->GetEffectorAxisLabel(i);
+
+        kinematics->SetTargetPosition(kinematics->GetEffectorPosition(axisLabel), axisLabel);
+    }
 }
 
 // Absolute positioning mode
@@ -166,27 +175,31 @@ void GCode::M42(GCodeCommand* gc){
     }
 
     switch (state){
-        case 0: pinMode(pin, INPUT); break;
-        case 1: pinMode(pin, OUTPUT); break;
-        case 2: pinMode(pin, INPUT_PULLUP); break;
-        case 3: pinMode(pin, INPUT_PULLDOWN); break;
-        case 4: pinMode(pin, INPUT); break;//repeat for digital
+        case 0: case 1: pinMode(pin, OUTPUT); break;
+        case 2: case 3: pinMode(pin, INPUT); break;
+        case 4: pinMode(pin, INPUT_PULLUP); break;
+        case 5: pinMode(pin, INPUT_PULLDOWN); break;
         default: SerialHandler::SendMessageValue("State", state); break;
     }
 
-    if (state == 1) analogWrite(pin, pwmValue);
-    else if (state == 0 || state == 2 || state == 3) {
-        SerialHandler::SendMessageValue("Pin " + String(pin), analogRead(pin));
-    }
-    else if (state == 4) {
+    delay(10);
+
+    if (state == 0) digitalWrite(pin, pwmValue);
+    else if (state == 1) analogWrite(pin, pwmValue);
+    else if (state == 3) {
         SerialHandler::SendMessageValue("Pin " + String(pin), digitalRead(pin));
+    }
+    else if (state == 4 || state == 5 || state == 6) {
+        SerialHandler::SendMessageValue("Pin " + String(pin), analogRead(pin));
     }
 }
 
 // Get Position
 void GCode::M114(GCodeCommand* gc){
     for (int i = 0; i < kinematics->GetAxisCount(); i++){
-        SerialHandler::SendMessageValueSpace(kinematics->GetEffectorPosition(i));
+        char axisLabel = kinematics->GetEffectorAxisLabel(i);
+
+        SerialHandler::SendMessageValueSpace(axisLabel, kinematics->GetEffectorPosition(axisLabel));
     }
 
     SerialHandler::SendMessage("");
@@ -194,9 +207,11 @@ void GCode::M114(GCodeCommand* gc){
 
 // Detect Firmware
 void GCode::M115(GCodeCommand* gc){
-    SerialHandler::SendMessageSpace("FIRMWARE_NAME:AetherControl");
+    SerialHandler::SendMessageNLN("FIRMWARE_NAME:");
+    SerialHandler::SendMessageSpace(GlobalVariables::firmwareName);
     SerialHandler::SendMessageSpace(GlobalVariables::firmwareVersion);
-    SerialHandler::SendMessage("SOURCE_CODE_URL:https://github.com/coelacant1/AetherControl");
+    SerialHandler::SendMessageNLN("SOURCE_CODE_URL:");
+    SerialHandler::SendMessage(GlobalVariables::firmwareSourceURL);
 }
 
 // Set LED color

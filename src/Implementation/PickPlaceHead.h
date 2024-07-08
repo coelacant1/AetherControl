@@ -11,7 +11,7 @@
 class PickPlaceHead : public Implementation{
 private:
     AxisConstraints axisLimitZ = AxisConstraints('Z', 0.0f, 48.0f, 0.01f, 1000.0f, 10000.0f, 1200.0f, 80.0f);
-    AxisConstraints axisLimitI = AxisConstraints('I', -720.0f, 720.0f, 0.01f, 1000.0f, 10000.0f, 1200.0f, 80.0f);
+    AxisConstraints axisLimitI = AxisConstraints('I', -720.0f, 720.0f, 0.01f, 1000.0f, 10000.0f, 1200.0f, 8.88888889f);
 
     PulseControl<2> pulseControl = PulseControl<2>();
     Cartesian<2> cartesian = Cartesian<2>();

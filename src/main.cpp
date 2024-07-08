@@ -1,4 +1,5 @@
 #include "Implementation/PickPlace.h"
+//#include "Implementation/PickPlaceHead.h"
 
 Implementation* control = new PickPlace();
 
@@ -12,8 +13,6 @@ void setup() {
     while(!Serial){}
 
     control->PrintInformation();
-
-    SerialHandler::SendCommandAsk();
 }
 
 void loop() {

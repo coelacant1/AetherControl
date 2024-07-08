@@ -15,11 +15,11 @@ void SerialHandler::SendMessageValue(String message, T value){
 template <typename T>
 void SerialHandler::SendMessageValueSpace(String message, T value){
     if(serialType) {
-        serialHS->print(message); serialHS->print(":");
+        serialHS->print(message); serialHS->print(":"); serialHS->print(value); 
         serialHS->print(" ");
     }
     else {
-        serialUSC->print(message); serialUSC->print(":");
+        serialUSC->print(message); serialUSC->print(":"); serialUSC->print(value); 
         serialUSC->print(" ");
     }
 }

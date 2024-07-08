@@ -6,7 +6,7 @@
 #include "../lib/ProtoTracer/Utils/Time/Wait.h"
 
 // use A and B as relative axes for X and Y
-template<size_t axisCount>
+template<uint8_t axisCount>
 class CoreXY : public Kinematics<axisCount> {
 private:
     const uint8_t xEndstop;
@@ -33,6 +33,8 @@ private:
 
     float CalculateAPosition(float x, float y);
     float CalculateBPosition(float x, float y);
+    float CalculateXPosition(float a, float b);
+    float CalculateYPosition(float a, float b);
 
     void SetControls(float cX, float cY, float tX, float tY, float vR);
     bool IsMoveFinished(float tX, float tY);

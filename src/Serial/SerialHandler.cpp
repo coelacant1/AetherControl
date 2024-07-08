@@ -43,7 +43,7 @@ GCodeCommand SerialHandler::ReadCommand(){
         if(available > 0){
             incomingChar = serialType ? serialHS->read() : serialUSC->read();
             
-            SendCharacter(incomingChar);
+            if (GlobalVariables::printCharacterStream) SendCharacter(incomingChar);
             
             if (incomingChar == '\n') break;
 

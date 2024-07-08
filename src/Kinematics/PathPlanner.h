@@ -26,7 +26,7 @@ public:
     PathPlanner();
 
     void AddAxis(Axis* axis) override;
-    Axis* GetAxis(int axisIndex) override;
+    Axis* GetAxis(uint8_t axisIndex) override;
     uint8_t GetAxisCount() override;
     void CalculateLimits(float feedrate) override;
     bool Update() override;

@@ -1,12 +1,12 @@
 #include "Implementation.h"
 
 void Implementation::SetSerialInterface(HardwareSerial* serial, long baudrate){
-    SerialHandler::SetSerialInterface(Serial, 38400);
+    SerialHandler::SetSerialInterface(*serial, baudrate);
     SerialHandler::Initialize();
 }
 
 void Implementation::SetSerialInterface(usb_serial_class* serial, long baudrate){
-    SerialHandler::SetSerialInterface(Serial, 38400);
+    SerialHandler::SetSerialInterface(*serial, baudrate);
     SerialHandler::Initialize();
 }
 
@@ -21,5 +21,5 @@ void Implementation::ExecuteCommand(){
 
     SerialHandler::SendOK();
 
-    SerialHandler::SendCommandAsk();
+    //SerialHandler::SendCommandAsk();
 }
