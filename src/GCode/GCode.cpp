@@ -10,12 +10,13 @@ void GCode::AddIKinematics(IKinematics* kinematics){
     this->kinematics = kinematics;
 }
 
-void GCode::ExecuteGCode(GCodeCommand* gc){
+void GCode::ExecuteGCode(const GCodeCommand* gc){
     if (gc->commandType == 'G'){
         switch (gc->commandNumber){
             case   0: G0(gc);  break;
             case   1: G1(gc);  break;
             case   4: G4(gc);  break;
+            case   6: G6(gc);  break;
             case  21: G21(gc); break;
             case  28: G28(gc); break;
             case  90: G90(gc); break;
@@ -43,7 +44,62 @@ void GCode::ExecuteGCode(GCodeCommand* gc){
 }
 
 // Rapid move
-void GCode::G0(GCodeCommand* gc){
+void GCode::G0(const GCodeCommand* gc){
+    if (gc->parametersUsed == 0) return;
+
+    float feedrate = 10.0f;
+
+    for (int i = 0; i < gc->parametersUsed; i++){
+        if (gc->characters[i] == 'F'){
+            feedrate = gc->values[i] / 60.0f;//input at mm/min convert to mm/s
+        }
+        else{
+            switch (gc->characters[i]) {
+                case IKinematics::A:
+                case IKinematics::B:
+                case IKinematics::E:
+                case IKinematics::I:
+                case IKinematics::J:
+                case IKinematics::K:
+                case IKinematics::U:
+                case IKinematics::V:
+                case IKinematics::W:
+                case IKinematics::X:
+                case IKinematics::Y:
+                case IKinematics::Z: {
+                    float target = GlobalVariables::relativeMode ? gc->values[i] + kinematics->GetEffectorPosition(gc->characters[i]) : gc->values[i];
+
+                    kinematics->SetTargetPosition(target, gc->characters[i]);
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+    }
+
+    kinematics->StartMove(feedrate);
+}
+
+// Linear move
+void GCode::G1(const GCodeCommand* gc){
+    G0(gc);
+}
+
+// Dwell
+void GCode::G4(const GCodeCommand* gc){
+    for (int i = 0; i < gc->parametersUsed; i++){
+        if (gc->characters[i] == 'P'){// Millis
+            delay(gc->values[i]);
+        }
+        else if (gc->characters[i] == 'S'){// Seconds
+            delay(gc->values[i] * 1000);
+        }
+    }
+}
+
+// Direct Stepper Move, no acceleration
+void GCode::G6(const GCodeCommand* gc){
     if (gc->parametersUsed == 0) return;
 
     float feedrate = 10.0f;
@@ -78,31 +134,14 @@ void GCode::G0(GCodeCommand* gc){
         }
     }
 
-    kinematics->StartMove(feedrate);
-}
-
-// Linear move
-void GCode::G1(GCodeCommand* gc){
-    G0(gc);
-}
-
-// Dwell
-void GCode::G4(GCodeCommand* gc){
-    for (int i = 0; i < gc->parametersUsed; i++){
-        if (gc->characters[i] == 'P'){// Millis
-            delay(gc->values[i]);
-        }
-        else if (gc->characters[i] == 'S'){// Seconds
-            delay(gc->values[i] * 1000);
-        }
-    }
+    kinematics->StartMoveNoAccel(feedrate);
 }
 
 // Set Millimeter mode
-void GCode::G21(GCodeCommand* gc){}
+void GCode::G21(const GCodeCommand* gc){}
 
 // Home all non-relative axes
-void GCode::G28(GCodeCommand* gc){
+void GCode::G28(const GCodeCommand* gc){
     kinematics->HomeAxes();
     
     // Initialize default target position to current position
@@ -114,20 +153,20 @@ void GCode::G28(GCodeCommand* gc){
 }
 
 // Absolute positioning mode
-void GCode::G90(GCodeCommand* gc){
+void GCode::G90(const GCodeCommand* gc){
     GlobalVariables::relativeMode = false;
 }
 
 // Relative positioning mode
-void GCode::G91(GCodeCommand* gc){
+void GCode::G91(const GCodeCommand* gc){
     GlobalVariables::relativeMode = true;
 }
 
 // Set global offsets
-void GCode::G92(GCodeCommand* gc){}
+void GCode::G92(const GCodeCommand* gc){}
 
 // Enable steppers
-void GCode::M17(GCodeCommand* gc){
+void GCode::M17(const GCodeCommand* gc){
     if (gc->parametersUsed == 0){
         for (int i = 0; i < kinematics->GetAxisCount(); i++){
             kinematics->GetAxis(i)->Enable();
@@ -145,7 +184,7 @@ void GCode::M17(GCodeCommand* gc){
 }
 
 // Disable steppers
-void GCode::M18(GCodeCommand* gc){
+void GCode::M18(const GCodeCommand* gc){
     if (gc->parametersUsed == 0){
         for (int i = 0; i < kinematics->GetAxisCount(); i++){
             kinematics->GetAxis(i)->Disable();
@@ -163,7 +202,7 @@ void GCode::M18(GCodeCommand* gc){
 }
 
 // Manual pin control
-void GCode::M42(GCodeCommand* gc){
+void GCode::M42(const GCodeCommand* gc){
     uint8_t pin = 255;
     uint8_t pwmValue = 0;
     uint8_t state = 0;
@@ -195,7 +234,7 @@ void GCode::M42(GCodeCommand* gc){
 }
 
 // Get Position
-void GCode::M114(GCodeCommand* gc){
+void GCode::M114(const GCodeCommand* gc){
     for (int i = 0; i < kinematics->GetAxisCount(); i++){
         char axisLabel = kinematics->GetEffectorAxisLabel(i);
 
@@ -206,7 +245,7 @@ void GCode::M114(GCodeCommand* gc){
 }
 
 // Detect Firmware
-void GCode::M115(GCodeCommand* gc){
+void GCode::M115(const GCodeCommand* gc){
     SerialHandler::SendMessageNLN("FIRMWARE_NAME:");
     SerialHandler::SendMessageSpace(GlobalVariables::firmwareName);
     SerialHandler::SendMessageSpace(GlobalVariables::firmwareVersion);
@@ -215,7 +254,7 @@ void GCode::M115(GCodeCommand* gc){
 }
 
 // Set LED color
-void GCode::M150(GCodeCommand* gc){
+void GCode::M150(const GCodeCommand* gc){
     uint8_t R = 0, G = 0, B = 0;
 
     for (int i = 0; i < gc->parametersUsed; i++){
@@ -230,11 +269,13 @@ void GCode::M150(GCodeCommand* gc){
 }
 
 // Set Acceleration
-void GCode::M204(GCodeCommand* gc){    
+void GCode::M204(const GCodeCommand* gc){    
     for (int i = 0; i < gc->parametersUsed; i++){
-        if (gc->characters[i] == 'T' || gc->characters[i] == 'P' || gc->characters[i] == 'S') kinematics->GetAxis(i)->GetAxisConstraints()->SetAcceleration(gc->values[i]);
+        for (int j = 0; j < kinematics->GetAxisCount(); j++) {
+            if (gc->characters[i] == 'T' || gc->characters[i] == 'P' || gc->characters[i] == 'S') kinematics->GetAxis(j)->GetAxisConstraints()->SetAcceleration(gc->values[i]);
+        }
     }
 }
 
 // Wait for move completion, nothing required, synchronous control only
-void GCode::M400(GCodeCommand* gc){}
+void GCode::M400(const GCodeCommand* gc){}

@@ -23,7 +23,18 @@ void Cartesian<axisCount>::StartMove(float feedrate){
     
     this->pathPlanner.CalculateLimits(feedrate);
 
-    while (this->pathPlanner.Update()) delay(10);
+    while (this->pathPlanner.Update()) {}
+}
+
+template<uint8_t axisCount>
+void Cartesian<axisCount>::StartMoveNoAccel(float feedrate){
+    for (uint8_t i = 0; i < this->currentAxes; i++){// Set all at the same time
+        this->axes[i]->SetTargetPosition(this->axisTarget[i]);
+    }
+    
+    this->pathPlanner.CalculateLimitsNoAccel(feedrate);
+
+    while (this->pathPlanner.UpdateNoAccel()) {}
 }
 
 template<uint8_t axisCount>

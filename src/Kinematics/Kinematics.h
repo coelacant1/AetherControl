@@ -22,6 +22,7 @@ public:
 
     virtual bool SetTargetPosition(float position, char axisLabel) = 0;//return if axis exists
     virtual void StartMove(float feedrate) = 0;
+    virtual void StartMoveNoAccel(float feedrate) = 0;
     virtual void HomeAxes() = 0;
     virtual float GetAxisPosition(char axisLabel) = 0;
     virtual float GetEffectorPosition(char axisLabel) = 0;

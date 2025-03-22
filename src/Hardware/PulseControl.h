@@ -12,7 +12,7 @@
 template<size_t axisCount>
 class PulseControl : public IPulseControl {
 private:
-    static const uint8_t maxInstances = 6;
+    static const uint8_t maxInstances = 8;
     static PulseControl<axisCount>* instances[maxInstances];// 4 timers
     static size_t instanceCount;
     

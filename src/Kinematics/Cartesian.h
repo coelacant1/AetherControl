@@ -11,6 +11,8 @@ public:
 
     void StartMove(float feedrate) override;
 
+    void StartMoveNoAccel(float feedrate) override;
+
     void HomeAxes() override;
 
     float GetAxisPosition(char axisLabel) override;

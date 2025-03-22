@@ -1,6 +1,16 @@
 #pragma once
 
 template <typename T>
+void SerialHandler::SendValuePrecisionNC(T value, int precision){
+    if(serialType) {
+        serialHS->print(value, precision);
+    }
+    else {
+        serialUSC->print(value, precision);
+    }
+}
+
+template <typename T>
 void SerialHandler::SendMessageValue(String message, T value){
     if(serialType) {
         serialHS->print(message); serialHS->print(":");

@@ -17,6 +17,7 @@ public:
     static bool IsReady();
     static int CommandAvailable();
     static GCodeCommand ReadCommand();
+    static GCodeCommand DirectCommand(String line);
     static void SendOK();
     static void SendNotImplemented();
     static void SendCommandAsk();
@@ -29,6 +30,9 @@ public:
     static void SetSerialInterface(HardwareSerial& serial, long baudrate);
     static void SetSerialInterface(usb_serial_class& serial, long baudrate);
     
+	template <typename T>
+    static void SendValuePrecisionNC(T value, int precision);
+
 	template <typename T>
     static void SendMessageValue(String message, T value);
     

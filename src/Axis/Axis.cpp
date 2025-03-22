@@ -237,9 +237,9 @@ void Axis::Update(){
     if (velocity > axisConstraints->GetMaxVelocity()) velocity = axisConstraints->GetMaxVelocity();
     if (velocity < -axisConstraints->GetMaxVelocity()) velocity = -axisConstraints->GetMaxVelocity();
 
-    if (Mathematics::IsClose(velocity, axisConstraints->GetMinVelocity(), 0.001f)) velocity = 0.0f;
+    //if (Mathematics::IsClose(velocity, axisConstraints->GetMinVelocity(), 0.005f)) velocity = 0.0f;
 
-    if (remainingDistance < 0.001f) velocity = 0;
+    if (remainingDistance < 0.005f) velocity = 0;
 
     SetCurrentVelocity(velocity);
 }

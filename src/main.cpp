@@ -1,7 +1,8 @@
-#include "Implementation/PickPlace.h"
+#include "Implementation/StewartPlatform.h"
 //#include "Implementation/PickPlaceHead.h"
 
-Implementation* control = new PickPlace();
+Implementation* control = new StewartPlatform();
+int count = 0;
 
 void setup() {
     control->SetSerialInterface(&Serial, 115200);
@@ -20,5 +21,7 @@ void loop() {
         control->ExecuteCommand();
 
         delay(1);
+        
+        control->PrintInformation();
     }
 }

@@ -49,6 +49,8 @@ public:
     bool SetTargetPosition(float position, char axisLabel) override;//return if axis exists
 
     void StartMove(float feedrate) override;
+    
+    void StartMoveNoAccel(float feedrate) override;
 
     void HomeAxes() override;
 

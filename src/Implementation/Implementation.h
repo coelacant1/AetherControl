@@ -20,5 +20,8 @@ public:
 
     bool IsCommandAvailable();
     void ExecuteCommand();
+    void DirectExecuteCommand(String command);
+
+    GCode* GetGCodeControl();
 
 };

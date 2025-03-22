@@ -23,3 +23,14 @@ void Implementation::ExecuteCommand(){
 
     //SerialHandler::SendCommandAsk();
 }
+
+void Implementation::DirectExecuteCommand(String command){
+    GCodeCommand cmd = SerialHandler::DirectCommand(command);
+    
+    gCode.ExecuteGCode(&cmd);
+}
+
+
+GCode* Implementation::GetGCodeControl(){
+    return &gCode;
+}

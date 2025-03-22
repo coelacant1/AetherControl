@@ -140,6 +140,8 @@ void PulseControl<axisCount>::StaticTimerCallback(){
     if (instances[3] != nullptr) instances[3]->AutoStepControl();
     if (instances[4] != nullptr) instances[4]->AutoStepControl();
     if (instances[5] != nullptr) instances[5]->AutoStepControl();
+    if (instances[6] != nullptr) instances[6]->AutoStepControl();
+    if (instances[7] != nullptr) instances[7]->AutoStepControl();
 }
 
 template<size_t axisCount>
